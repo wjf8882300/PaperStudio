@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PaperStudio - 信笺纸设计工具</title>
+    <title>PaperStudio - 信笺、稿纸设计工具</title>
     <script src="./static/tailwindcss.js"></script>
     <link href="./static/toastify.min.css" rel="stylesheet" />
     <script src="./static/fabric.min.js"></script>
@@ -13,6 +13,8 @@
     <link href="./static/icons.min.css" rel="stylesheet" />
     <script src="./static/hotkeys-js.min.js"></script>
     <script src="./static/toastify-js.js"></script>
+    <link rel="stylesheet" href="./static/coloris.min.css" />
+    <script src="./static/coloris.min.js"></script>
     <link rel="preload" href="./static/SourceHanSerifCN-Bold.ttf" as="font" type="font/ttf" crossorigin />
     <style>
       /* 基础滚动条隐藏 */
@@ -110,7 +112,9 @@
       .compact-label {
         color: #6b7280;
         margin-bottom: 2px;
-        display: block;
+        display: flex;
+        column-gap: 5px;
+        align-items: center;
       }
 
       /* 样式按钮 */
@@ -147,6 +151,83 @@
         width: 120px;
       }
 
+      /* 表格编辑器 */
+      .table-editor-grid {
+        border-collapse: collapse;
+        width: 100%;
+      }
+
+      .table-editor-grid td {
+        border: 1px solid #cbd5e1;
+        min-width: 60px;
+        height: 44px;
+        text-align: center;
+        cursor: text;
+        padding: 4px;
+        font-size: 12px;
+        color: #0f172a;
+        transition: background-color 0.15s ease;
+      }
+
+      .table-editor-grid td.selected {
+        outline: 2px solid #f97316;
+        outline-offset: -2px;
+        box-shadow: inset 0 0 0 1px rgba(249, 115, 22, 0.3);
+      }
+
+      .table-editor-grid td:focus {
+        outline: 2px solid #2563eb;
+        outline-offset: -2px;
+      }
+
+      .table-style-btn {
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fff;
+        transition: all 0.15s ease;
+      }
+
+      .table-style-btn.active {
+        background: #fee2e2;
+        border-color: #f87171;
+        color: #b91c1c;
+        font-weight: 600;
+      }
+      /* 表格编辑器网格样式 */
+      .table-editor-grid td {
+        border: 1px solid #cbd5e1;
+        min-width: 60px; /* 最小宽度，防止太扁 */
+        cursor: text;
+        padding: 4px;
+        position: relative;
+        transition: background-color 0.1s;
+      }
+
+      /* 选中高亮 */
+      .table-editor-grid td.selected {
+        background-color: rgba(59, 130, 246, 0.15) !important;
+        box-shadow: inset 0 0 0 2px #3b82f6;
+        z-index: 10;
+      }
+
+      /* 单元格聚焦（输入时） */
+      .table-editor-grid td:focus {
+        outline: none;
+        background-color: #fff;
+        box-shadow: inset 0 0 0 2px #2563eb;
+        z-index: 20;
+      }
+
+      /* 悬浮工具栏 */
+      #tableFloatMenu {
+        pointer-events: auto;
+        will-change: top, left;
+      }
       @font-face {
         font-family: "SourceHanSerifCN-Bold";
         src: url("./static/SourceHanSerifCN-Bold.ttf") format("truetype");
@@ -187,6 +268,7 @@
       }
     </style>
   </head>
+
   <body class="bg-gray-50 h-screen flex flex-col text-slate-700 font-sans overflow-hidden">
     <div id="welcomeModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop transition-opacity duration-300">
       <div class="bg-white w-[850px] h-[550px] rounded-2xl shadow-2xl flex overflow-hidden">
@@ -198,17 +280,17 @@
               </div>
               <div>
                 <h1 class="text-xl font-bold tracking-tight">PaperStudio</h1>
-                <p class="text-slate-400 text-xs">简单的信稿笺纸设计工具</p>
+                <p class="text-slate-400 text-xs">简单的打印纸设计工具</p>
               </div>
             </div>
             <div class="space-y-4">
               <button onclick="App.templates.load('blank_a4')" class="w-full py-3 px-4 bg-red-600 hover:bg-red-700 rounded-xl flex items-center gap-3 transition group">
                 <i class="ph ph-plus-circle text-xl"></i>
-                <span class="font-medium">新建空白信纸</span>
+                <span class="font-medium">新建空白纸</span>
               </button>
               <button onclick="document.getElementById('projectImportInput').click()" class="w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center gap-3 transition">
                 <i class="ph ph-folder-open text-xl text-slate-400"></i>
-                <span class="font-medium">打开信纸文件</span>
+                <span class="font-medium">打开纸文件</span>
               </button>
             </div>
           </div>
@@ -225,11 +307,158 @@
       </div>
     </div>
 
+    <div id="tableModal" class="hidden fixed inset-0 z-50 items-center justify-center modal-backdrop">
+      <div class="bg-white w-[98vw] h-[95vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden relative">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 z-20 bg-white shadow-sm shrink-0">
+          <div>
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2"><i class="ph ph-table text-red-600"></i> 表格编辑器</h3>
+            <p class="text-xs text-slate-400 mt-0.5">拖动分割线调整宽高，选中单元格右键或使用悬浮菜单编辑</p>
+          </div>
+          <button onclick="App.tableEditor.close()" class="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition">
+            <i class="ph ph-x text-xl"></i>
+          </button>
+        </div>
+
+        <div class="flex-1 overflow-auto bg-slate-50 flex items-center justify-center p-16 relative select-none cursor-default" id="tableEditArea">
+          <div id="tableWrapper" class="m-auto relative group shadow-xl bg-white transition-all duration-200 ring-1 ring-slate-900/5">
+            <button
+              onclick="App.tableEditor.addCR('row', 'top')"
+              class="absolute -top-5 left-0 w-full h-5 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50/80 opacity-0 group-hover:opacity-100 transition-all duration-200 z-10"
+            >
+              <i class="ph ph-plus-circle text-xl"></i>
+            </button>
+            <button
+              onclick="App.tableEditor.addCR('row', 'bottom')"
+              class="absolute -bottom-5 left-0 w-full h-5 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50/80 opacity-0 group-hover:opacity-100 transition-all duration-200 z-10"
+            >
+              <i class="ph ph-plus-circle text-xl"></i>
+            </button>
+            <button
+              onclick="App.tableEditor.addCR('col', 'left')"
+              class="absolute top-0 -left-5 h-full w-5 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50/80 opacity-0 group-hover:opacity-100 transition-all duration-200 z-10"
+            >
+              <i class="ph ph-plus-circle text-xl"></i>
+            </button>
+            <button
+              onclick="App.tableEditor.addCR('col', 'right')"
+              class="absolute top-0 -right-5 h-full w-5 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50/80 opacity-0 group-hover:opacity-100 transition-all duration-200 z-10"
+            >
+              <i class="ph ph-plus-circle text-xl"></i>
+            </button>
+
+            <table class="table-editor-grid border-collapse bg-white" id="tableEditorTable">
+              <tbody id="tableGridBody"></tbody>
+            </table>
+          </div>
+
+          <div
+            id="tableFloatMenu"
+            class="hidden absolute z-50 bg-white text-slate-700 rounded-lg shadow-2xl p-1.5 flex items-center gap-2 transform -translate-x-1/2 -translate-y-full mb-3 transition-all duration-150 border border-gray-200 ring-1 ring-black/5 font-sans"
+          >
+            <!-- 字体选择 -->
+            <div class="border-r border-gray-200 pr-2">
+              <select id="floatFontFamily" onclick="App.loadLocalFonts()" class="h-7 bg-gray-50 border border-gray-300 rounded text-xs text-slate-700 focus:outline-none focus:border-blue-500 w-24 hover:bg-gray-100">
+                <option value="SourceHanSerifCN-Bold">思源宋体</option>
+                <option value="SimSun">宋体</option>
+                <option value="KaiTi">楷体</option>
+                <option value="SimHei">黑体</option>
+                <option value="Arial">Arial</option>
+              </select>
+            </div>
+
+            <!-- 字号与加粗 -->
+            <div class="flex gap-1 border-r border-gray-200 pr-2 items-center">
+              <input
+                type="number"
+                id="floatFontSize"
+                class="w-10 h-7 bg-gray-50 border border-gray-300 rounded text-center text-xs text-slate-700 focus:outline-none focus:border-blue-500"
+                min="9"
+                max="72"
+                title="字号"
+              />
+              <button id="floatBoldBtn" class="p-1.5 hover:bg-gray-100 rounded text-slate-500 hover:text-slate-900 transition"><i class="ph ph-text-b"></i></button>
+            </div>
+
+            <!-- 边框设置 -->
+            <div class="flex gap-1 border-r border-gray-200 pr-2 items-center">
+              <input
+                type="number"
+                id="floatBorderWidth"
+                class="w-10 h-7 bg-gray-50 border border-gray-300 rounded text-center text-xs text-slate-700 focus:outline-none focus:border-blue-500"
+                min="0"
+                max="10"
+                step="0.5"
+                title="边框宽度"
+              />
+              <div class="relative w-7 h-7 rounded hover:bg-gray-100 flex items-center justify-center group/picker border border-transparent hover:border-gray-200" title="边框颜色">
+                <input type="color" id="floatBorderColorInput" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                <i class="ph ph-square text-slate-400 group-hover/picker:text-slate-600"></i>
+                <div id="floatBorderColorInd" class="absolute bottom-1 right-1 w-2 h-2 rounded-full border border-gray-300 bg-slate-400 pointer-events-none"></div>
+              </div>
+            </div>
+
+            <div class="flex gap-1 border-r border-gray-200 pr-2 items-center">
+              <div
+                class="relative w-7 h-7 rounded hover:bg-gray-100 flex items-center justify-center group/picker border border-transparent hover:border-gray-200"
+                title="背景颜色"
+                onclick="document.getElementById('floatBgInput').click();"
+              >
+                <input type="text" id="floatBgInput" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" data-coloris value="#ffffff" />
+                <i class="ph ph-paint-bucket text-slate-400 group-hover/picker:text-slate-600"></i>
+                <div id="floatBgIndicator" class="absolute bottom-1 right-1 w-2 h-2 rounded-full border border-gray-300 bg-white pointer-events-none"></div>
+              </div>
+
+              <div class="relative w-7 h-7 rounded hover:bg-gray-100 flex items-center justify-center group/picker border border-transparent hover:border-gray-200" title="文字颜色">
+                <input type="color" id="floatTextInput" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                <i class="ph ph-text-t text-slate-400 group-hover/picker:text-slate-600"></i>
+                <div id="floatTextIndicator" class="absolute bottom-1 right-1 w-2 h-2 rounded-full border border-gray-300 bg-slate-900 pointer-events-none"></div>
+              </div>
+            </div>
+
+            <div class="flex gap-1 border-r border-gray-200 pr-2">
+              <button onclick="App.tableEditor.applyStyle({align:'left'})" class="p-1.5 hover:bg-gray-100 rounded text-slate-500 hover:text-slate-900"><i class="ph ph-text-align-left"></i></button>
+              <button onclick="App.tableEditor.applyStyle({align:'center'})" class="p-1.5 hover:bg-gray-100 rounded text-slate-500 hover:text-slate-900"><i class="ph ph-text-align-center"></i></button>
+              <button onclick="App.tableEditor.applyStyle({align:'right'})" class="p-1.5 hover:bg-gray-100 rounded text-slate-500 hover:text-slate-900"><i class="ph ph-text-align-right"></i></button>
+              <button id="floatMergeBtn" class="relative flex items-center justify-center p-1.5 hover:bg-gray-100 rounded text-slate-500 hover:text-slate-900" title="合并">
+                <i class="ph ph-arrows-in-line-horizontal"></i><i class="ph ph-corners-out text-[25px] absolute"></i>
+              </button>
+              <button id="floatSplitBtn" class="relative flex items-center justify-center p-1.5 hover:bg-gray-100 rounded text-slate-500 hover:text-slate-900" title="拆分">
+                <i class="ph ph-arrows-out-line-horizontal"></i><i class="ph ph-corners-out text-[25px] absolute"></i>
+              </button>
+            </div>
+
+            <div class="flex gap-1">
+              <button onclick="App.tableEditor.deleteCR('row')" class="relative flex items-center justify-center p-1.5 hover:bg-gray-100 rounded text-slate-400 transition group" title="删除选中行">
+                <i class="ph ph-rows text-lg"></i>
+                <i class="ph ph-trash text-sm absolute -bottom-1 -right-1  rounded-full p-[1px] shadow-sm "></i>
+              </button>
+
+              <button onclick="App.tableEditor.deleteCR('col')" class="relative flex items-center justify-center p-1.5 hover:bg-gray-100 rounded text-slate-400 transition group" title="删除选中列">
+                <i class="ph ph-columns text-lg"></i>
+                <i class="ph ph-trash text-sm absolute -bottom-1 -right-1  rounded-full p-[1px] shadow-sm "></i>
+              </button>
+            </div>
+
+            <div class="absolute bottom-0 left-1/2 -ml-1.5 -mb-1.5 w-3 h-3 bg-white transform rotate-45 border-r border-b border-gray-200"></div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between shrink-0 z-20">
+          <div class="flex gap-3 ml-auto">
+            <button id="tableCancelBtn" class="px-5 py-2.5 rounded-lg border border-gray-300 text-slate-700 text-sm font-medium hover:bg-white hover:border-gray-400 transition bg-white shadow-sm">取消</button>
+            <button id="tableInsertBtn" class="px-6 py-2.5 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition shadow-md shadow-red-100 flex items-center gap-2">
+              <i class="ph ph-check-circle text-lg"></i> 完成并插入
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <input type="file" id="projectImportInput" hidden accept=".paper" />
     <input type="file" id="imgUpload" hidden accept="image/*" />
     <input type="file" id="imgReplaceInput" hidden accept="image/*" />
 
-    <header class="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 shadow-sm z-30 shrink-0 text-sm">
+    <header class="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 shadow-sm z-30 shrink-0 text-sm whitespace-nowrap">
       <div class="flex items-center gap-4">
         <div class="flex items-center gap-2 text-slate-800 cursor-pointer" onclick="App.ui.showModal('welcomeModal')">
           <i class="ph ph-scroll text-2xl text-red-600"></i>
@@ -272,6 +501,8 @@
           <i class="ph ph-image text-lg"></i> 图片
         </button>
 
+        <button onclick="App.tableEditor.open()" class="flex items-center gap-1 px-3 py-1.5 rounded hover:bg-gray-100 font-medium transition text-gray-600"><i class="ph ph-table text-lg"></i> 表格</button>
+
         <div class="relative dropdown">
           <button class="flex items-center gap-1 px-3 py-1.5 rounded hover:bg-gray-100 font-medium transition text-gray-600">
             <i class="ph ph-article-ny-times text-lg"></i> 预设文本 <i class="ph ph-caret-down"></i>
@@ -313,9 +544,9 @@
           <section>
             <h3 class="font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1 text-sm"><i class="ph ph-files"></i> 纸张布局</h3>
             <div class="space-y-3">
-              <div>
-                <label class="compact-label">纸张尺寸</label>
-                <select id="paperSize" onchange="App.paper.updateSize()" class="w-full border-gray-300 rounded-md border p-2 bg-gray-50">
+              <div class="grid grid-cols-2">
+                <label class="compact-label col-span-2">纸张尺寸</label>
+                <select id="paperSize" onchange="App.paper.updateSize()" class="w-full border-gray-300 rounded-md border p-2 bg-gray-50 col-span-2">
                   <option value="A3">A3 (297 × 420 mm)</option>
                   <option value="A4" selected>A4 (210 × 297 mm)</option>
                   <option value="A5">A5 (148 × 210 mm)</option>
@@ -325,7 +556,7 @@
                   <option value="Legal">Legal 美长</option>
                   <option value="16开">16开 (210 × 285 mm)</option>
                   <option value="32开">32开 (185 × 260 mm)</option>
-                  <option value="方信笺纸">方信笺纸 (230 × 230 mm)</option>
+                  <option value="方纸">方纸 (230 × 230 mm)</option>
                   <hr class="my-2 border-gray-300" />
                   <option value="CUSTOM">自定义尺寸…</option>
                 </select>
@@ -333,31 +564,63 @@
                   <input type="checkbox" id="paperOrientation" class="accent-red-600 rounded scale-90" onchange="App.paper.updateSize()" />
                   <span class="text-gray-600">横向</span>
                 </label>
+                <label id="dualOptionWrapper" class="hidden flex items-center gap-1 cursor-pointer mt-3 select-none">
+                  <input type="checkbox" id="paperDual" class="accent-red-600 rounded scale-90" onchange="App.paper.drawPaper()" />
+                  <span class="text-gray-600" title="横向纸张上左右各生成一份相同内容">对开模式</span>
+                </label>
               </div>
               <div id="customSizeInputs" class="grid grid-cols-2 gap-2 hidden">
-                <div><label class="compact-label">宽 (mm)</label><input type="number" id="customW" value="210" class="w-full compact-input border rounded" /></div>
-                <div><label class="compact-label">高 (mm)</label><input type="number" id="customH" value="297" class="w-full compact-input border rounded" /></div>
+                <div>
+                  <label class="compact-label">宽(mm)</label>
+                  <input type="number" id="customW" value="210" class="w-full compact-input border rounded" />
+                </div>
+                <div>
+                  <label class="compact-label">高(mm)</label>
+                  <input type="number" id="customH" value="297" class="w-full compact-input border rounded" />
+                </div>
                 <button onclick="App.paper.updateSize()" class="col-span-2 bg-gray-100 hover:bg-gray-200 py-1 rounded">应用尺寸</button>
               </div>
               <div class="grid grid-cols-2 gap-2">
-                <div><label class="compact-label">上边距</label><input type="number" id="marginTop" value="35" min="0" class="w-full compact-input border border-gray-300 rounded" oninput="App.paper.drawGrid()" /></div>
                 <div>
-                  <label class="compact-label">下边距</label><input type="number" id="marginBottom" value="30" min="0" class="w-full compact-input border border-gray-300 rounded" oninput="App.paper.drawGrid()" />
+                  <label class="compact-label">上边距</label>
+                  <input type="number" id="marginTop" value="25" min="0" class="w-full compact-input border border-gray-300 rounded" oninput="App.paper.drawGrid()" />
                 </div>
-                <div><label class="compact-label">左边距</label><input type="number" id="marginLeft" value="22" min="0" class="w-full compact-input border border-gray-300 rounded" oninput="App.paper.drawGrid()" /></div>
-                <div><label class="compact-label">右边距</label><input type="number" id="marginRight" value="22" min="0" class="w-full compact-input border border-gray-300 rounded" oninput="App.paper.drawGrid()" /></div>
+                <div>
+                  <label class="compact-label">下边距</label>
+                  <input type="number" id="marginBottom" value="25" min="0" class="w-full compact-input border border-gray-300 rounded" oninput="App.paper.drawGrid()" />
+                </div>
+                <div>
+                  <label class="compact-label">左边距</label>
+                  <input type="number" id="marginLeft" value="20" min="0" class="w-full compact-input border border-gray-300 rounded" oninput="App.paper.drawGrid()" />
+                </div>
+                <div>
+                  <label class="compact-label">右边距</label>
+                  <input type="number" id="marginRight" value="20" min="0" class="w-full compact-input border border-gray-300 rounded" oninput="App.paper.drawGrid()" />
+                </div>
               </div>
             </div>
           </section>
           <section>
             <div class="space-y-3">
               <div>
-                <div class="flex justify-between mb-1">
-                  <label class="compact-label">行数</label>
-                  <span class="font-mono bg-red-50 text-red-600 px-1 rounded" id="rowCountDisplay">20</span>
-                </div>
-                <input type="range" id="rowCount" min="0" max="50" value="20" class="w-full accent-red-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" oninput="App.paper.updateSettings()" />
+                <label class="compact-label">纸张类型</label>
+                <select id="paperType" onchange="App.paper.changeType(this.value, true)" class="w-full border-gray-300 rounded-md border p-2 bg-gray-50">
+                  <option value="blank" selected>空白纸</option>
+                  <option value="ruled">横线纸</option>
+                  <option value="grid">方格纸</option>
+                  <option value="composition">作文纸</option>
+                  <option value="english">英文纸</option>
+                  <option value="music">乐谱纸</option>
+                  <option value="tianzige">田字格</option>
+                  <option value="mizige">米字格</option>
+                  <option value="huizige">回字格</option>
+                  <option value="jiugongge">宫格纸</option>
+                  <option value="dots">点阵纸</option>
+                  <option value="triangle">等距网格</option>
+                  <option value="hexagon">六边形网格</option>
+                </select>
               </div>
+
               <div class="flex items-center gap-2">
                 <div class="flex-1">
                   <label class="compact-label">背景颜色</label>
@@ -369,32 +632,160 @@
                   </div>
                 </div>
 
-                <div class="flex-1">
-                  <label class="compact-label">行线颜色</label>
-                  <input type="color" id="gridColor" value="#e11d48" class="h-7 w-full p-0 border-0 rounded cursor-pointer" oninput="App.paper.updateSettings()" />
-                </div>
-                <div class="w-16">
-                  <label class="compact-label">线宽</label>
-                  <input type="number" id="strokeWidth" value="1" min="1" max="5" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                <div class="flex items-center gap-2 flex-2" data-paper-types="ruled,grid,composition,english,music,tianzige,mizige,huizige,jiugongge,dots,triangle,hexagon">
+                  <div class="flex-1">
+                    <label class="compact-label">线条颜色</label>
+                    <input type="color" id="gridColor" value="#e11d48" class="h-7 w-full p-0 border-0 rounded cursor-pointer" oninput="App.paper.updateSettings()" />
+                  </div>
+                  <div class="w-16">
+                    <label class="compact-label">线宽</label>
+                    <input type="number" id="strokeWidth" value="1" min="0" max="5" step="0.1" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                  </div>
                 </div>
               </div>
-              <div class="flex items-center gap-2 mt-2">
+
+              <div data-paper-types="ruled,english,composition">
+                <div class="flex justify-between mb-1">
+                  <label class="compact-label">行数</label>
+                  <span class="font-mono bg-red-50 text-red-600 px-1 rounded" id="rowCountDisplay">20</span>
+                </div>
+                <input type="range" id="rowCount" min="0" max="50" value="20" class="w-full accent-red-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" oninput="App.paper.updateSettings()" />
+              </div>
+
+              <div data-paper-types="ruled,english,tianzige,mizige,huizige,jiugongge,grid,triangle,hexagon" class="flex items-center gap-2">
                 <label class="flex items-center gap-2 cursor-pointer flex-1 select-none">
                   <input type="checkbox" id="gridDashed" class="accent-red-600 rounded scale-90" onchange="App.paper.updateSettings()" />
                   <span class="text-gray-600 compact-label mb-0">虚线</span>
                 </label>
                 <div class="w-16 relative">
-                  <span class="text-gray-300 pointer-events-none">间距</span>
+                  <span class="compact-label">间距</span>
                   <input type="number" id="gridDashArray" value="4" min="1" max="20" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
                 </div>
               </div>
-              <div class="space-y-1">
-                <label class="flex items-center gap-2 cursor-pointer"
-                  ><input type="checkbox" id="doubleFirst" class="accent-red-600 rounded scale-90" onchange="App.paper.drawGrid()" checked /><span class="text-gray-600">首行双线</span></label
+              <div data-paper-types="huizige" class="grid grid-cols-2 gap-2 mt-2 border-t border-gray-200 pt-2">
+                <div>
+                  <label class="compact-label">回字内框宽</label>
+                  <input type="number" id="huiInnerW" value="10" min="2" max="50" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                </div>
+                <div>
+                  <label class="compact-label">回字内框高</label>
+                  <input type="number" id="huiInnerH" value="10" min="2" max="50" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                </div>
+              </div>
+              <div data-paper-types="ruled" class="grid grid-cols-2 gap-2">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="doubleFirst" class="accent-red-600 rounded scale-90" onchange="App.paper.drawGrid()" checked /><span class="text-gray-600">首行双线</span></label
                 >
-                <label class="flex items-center gap-2 cursor-pointer"
-                  ><input type="checkbox" id="doubleLast" class="accent-red-600 rounded scale-90" onchange="App.paper.drawGrid()" checked /><span class="text-gray-600">尾行双线</span></label
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="doubleLast" class="accent-red-600 rounded scale-90" onchange="App.paper.drawGrid()" checked /><span class="text-gray-600">尾行双线</span></label
                 >
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="ruledClosed" class="accent-red-600 rounded scale-90" onchange="App.paper.drawGrid()" /><span class="text-gray-600">闭合两侧</span></label
+                >
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="ruledClosedDouble" class="accent-red-600 rounded scale-90" onchange="App.paper.drawGrid()" /><span class="text-gray-600">双线闭合</span></label
+                >
+              </div>
+
+              <div data-paper-types="english" class="grid grid-cols-3 gap-2">
+                <div>
+                  <label class="compact-label">行线间距 </label>
+                  <input type="number" id="englishLineGap" value="6" min="2" max="20" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                </div>
+                <div>
+                  <label class="compact-label">行距偏移 </label>
+                  <input type="number" id="englishOffset" value="0" min="-20" max="20" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                </div>
+                <div>
+                  <label class="compact-label">格行间距 </label>
+                  <input type="number" id="englishGroupGap" value="6" min="0" max="40" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                </div>
+              </div>
+
+              <div data-paper-types="composition" class="grid grid-cols-2 gap-2">
+                <div class="col-span-2">
+                  <div class="flex justify-between mb-1">
+                    <label class="compact-label">每行格数</label>
+                    <span class="font-mono bg-red-50 text-red-600 px-1 rounded" id="columnCountDisplay">12</span>
+                  </div>
+                  <input type="range" id="columnCount" min="4" max="40" value="12" class="w-full accent-red-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" oninput="App.paper.updateSettings()" />
+                </div>
+              </div>
+
+              <div data-paper-types="grid" class="grid grid-cols-2 gap-2">
+                <div class="col-span-2">
+                  <div class="flex justify-between mb-1">
+                    <label class="compact-label">每行格数</label>
+                    <span class="font-mono bg-red-50 text-red-600 px-1 rounded" id="gridColDisplay">24</span>
+                  </div>
+                  <input type="range" id="gridColumns" min="5" max="60" value="24" class="w-full accent-red-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" oninput="App.paper.updateSettings()" />
+                </div>
+              </div>
+
+              <div data-paper-types="music" class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="compact-label">每组线数</label>
+                  <input type="number" id="staffLineCount" value="5" min="1" max="12" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                </div>
+
+                <div>
+                  <label class="compact-label">谱表数量</label>
+                  <input type="number" id="staffCount" value="8" min="1" max="20" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                </div>
+                <div>
+                  <label class="compact-label">行间距(mm)</label>
+                  <input type="number" id="staffLineGap" value="3" min="1" max="10" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                </div>
+                <div>
+                  <label class="compact-label">谱表间距(mm)</label>
+                  <input type="number" id="staffGroupGap" value="10" min="0" max="40" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                </div>
+              </div>
+
+              <div data-paper-types="tianzige,mizige,huizige,jiugongge" class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="compact-label">格子大小(mm)</label>
+                  <input type="number" id="tianSize" value="20" min="6" max="40" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                </div>
+                <div>
+                  <label class="compact-label">中线细度</label>
+                  <input type="number" id="tianInnerScale" value="0.5" step="0.1" min="0.1" max="2" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                </div>
+              </div>
+              <div data-paper-types="jiugongge" class="grid grid-cols-2 gap-2 mt-2 border-t border-gray-200 pt-2">
+                <div>
+                  <label class="compact-label">内格列数 (竖分)</label>
+                  <input type="number" id="jiuCols" value="3" min="0" max="10" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                </div>
+                <div>
+                  <label class="compact-label">内格行数 (横分)</label>
+                  <input type="number" id="jiuRows" value="3" min="0" max="10" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                </div>
+              </div>
+              <div data-paper-types="dots" class="grid grid-cols-2 gap-2 hidden">
+                <div>
+                  <label class="compact-label">点密度(mm)</label>
+                  <input type="number" id="dotSpace" value="5" min="2" max="50" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                </div>
+                <div>
+                  <label class="compact-label">圆点直径(mm)</label>
+                  <input type="number" id="dotSize" value="1" step="0.1" min="0.1" max="5" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                </div>
+                <div>
+                  <label class="compact-label"><input type="checkbox" id="dotStagger" class="accent-red-600 rounded scale-90" onchange="App.paper.updateSettings()" />隔行错位</label>
+                </div>
+              </div>
+              <div data-paper-types="triangle,hexagon" class="grid grid-cols-1 gap-2 hidden">
+                <div>
+                  <label class="compact-label">图形边长(mm)</label>
+                  <input type="number" id="geoSize" value="10" min="2" max="50" class="w-full compact-input border rounded" oninput="App.paper.updateSettings()" />
+                </div>
+              </div>
+              <div data-paper-types="grid,composition,tianzige,mizige,huizige,jiugongge" class="mt-3 border-t border-gray-200 pt-2">
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                  <input type="checkbox" id="doubleBorder" class="accent-red-600 rounded scale-90" onchange="App.paper.drawGrid()" />
+                  <span class="text-gray-600 text-xs font-bold">双线边框</span>
+                </label>
               </div>
             </div>
           </section>
@@ -445,13 +836,28 @@
           <div id="selectionControls" class="hidden flex-1 overflow-y-auto p-3 space-y-4 text-xs">
             <section id="geoProps" class="border-b border-gray-100 pb-3">
               <div class="grid grid-cols-3 gap-2 mb-2">
-                <div><label class="compact-label">X 坐标</label><input type="number" id="propX" class="w-full compact-input border rounded" onchange="App.ui.updateGeo('left', this.value)" /></div>
-                <div><label class="compact-label">Y 坐标</label><input type="number" id="propY" class="w-full compact-input border rounded" onchange="App.ui.updateGeo('top', this.value)" /></div>
-                <div><label class="compact-label">旋转°</label><input type="number" id="propAngle" class="w-full compact-input border rounded" onchange="App.ui.updateGeo('angle', this.value)" /></div>
+                <div>
+                  <label class="compact-label">X 坐标</label>
+                  <input type="number" id="propX" class="w-full compact-input border rounded" onchange="App.ui.updateGeo('left', this.value)" />
+                </div>
+                <div>
+                  <label class="compact-label">Y 坐标</label>
+                  <input type="number" id="propY" class="w-full compact-input border rounded" onchange="App.ui.updateGeo('top', this.value)" />
+                </div>
+                <div>
+                  <label class="compact-label">旋转×</label>
+                  <input type="number" id="propAngle" class="w-full compact-input border rounded" onchange="App.ui.updateGeo('angle', this.value)" />
+                </div>
               </div>
               <div class="grid grid-cols-2 gap-2">
-                <div><label class="compact-label">宽度</label><input type="number" id="propW" class="w-full compact-input border rounded" onchange="App.ui.updateGeo('width', this.value)" /></div>
-                <div><label class="compact-label">高度</label><input type="number" id="propH" class="w-full compact-input border rounded" onchange="App.ui.updateGeo('height', this.value)" /></div>
+                <div>
+                  <label class="compact-label">宽度</label>
+                  <input type="number" id="propW" class="w-full compact-input border rounded" onchange="App.ui.updateGeo('width', this.value)" />
+                </div>
+                <div>
+                  <label class="compact-label">高度</label>
+                  <input type="number" id="propH" class="w-full compact-input border rounded" onchange="App.ui.updateGeo('height', this.value)" />
+                </div>
               </div>
             </section>
 
@@ -470,7 +876,7 @@
             </section>
 
             <section id="alignTools" class="hidden border-b border-gray-100 pb-3">
-              <h4 class="font-bold text-blue-600 mb-2">对齐与分布</h4>
+              <h4 class="font-bold text-gray-400 mb-2">对齐与分布</h4>
               <div class="grid grid-cols-4 gap-1">
                 <button onclick="App.ui.align('left')" class="py-1 border rounded hover:bg-blue-50" title="左对齐"><i class="ph ph-align-left"></i></button>
                 <button onclick="App.ui.align('center')" class="py-1 border rounded hover:bg-blue-50" title="水平居中"><i class="ph ph-align-center-horizontal"></i></button>
@@ -553,44 +959,59 @@
                 </div>
                 <div class="w-16">
                   <label class="compact-label">线宽</label>
-                  <input type="number" id="lineStrokeWidth" min="1" max="50" oninput="App.ui.setProp('strokeWidth', parseInt(this.value))" class="w-full compact-input border rounded" />
+                  <input type="number" id="lineStrokeWidth" min="0" max="50" step="0.1"  oninput="App.ui.setProp('strokeWidth', parseFloat(this.value))" class="w-full compact-input border rounded" />
                 </div>
               </div>
 
               <div class="flex items-center gap-2 pt-1 border-t border-gray-100">
                 <label class="flex items-center gap-2 cursor-pointer flex-1 select-none">
-                  <input type="checkbox" id="lineDashCheck" class="accent-slate-600 rounded scale-90" onchange="App.ui.updateLineDash()" />
+                  <input type="checkbox" id="lineDashCheck" class="accent-red-600 rounded scale-90" onchange="App.ui.updateLineDash()" />
                   <span class="text-gray-600 compact-label mb-0">虚线</span>
                 </label>
                 <div class="w-16">
-                  <label class="compact-label">虚线间距</label>
+                  <label class="compact-label">间距</label>
                   <input type="number" id="lineDashVal" value="5" min="1" max="50" class="w-full compact-input border rounded" oninput="App.ui.updateLineDash()" />
                 </div>
               </div>
             </section>
 
             <section id="shapeProps" class="hidden space-y-3 border-b border-gray-100 pb-3">
-              <!-- 原有的填充/边框颜色控制保持不变 -->
               <div class="flex gap-2">
                 <div class="flex-1">
-                  <label class="compact-label">填充</label>
-                  <div class="h-8 border rounded p-0.5 overflow-hidden relative bg-white">
-                    <input type="color" id="shapeFill" oninput="App.ui.setProp('fill', this.value)" class="absolute -top-2 -left-2 w-[150%] h-16 cursor-pointer" />
+                  <div class="flex justify-between items-center mb-1">
+                    <label class="compact-label mb-0">填充</label>
+                    <label class="flex items-center gap-1 cursor-pointer select-none" title="无填充(透明)">
+                      <input type="checkbox" id="shapeNoFill" class="accent-red-600 rounded scale-75" onchange="App.ui.toggleShapeFill()" />
+                      <span class="text-[10px] text-gray-400">无</span>
+                    </label>
+                  </div>
+                  <div class="h-8 border rounded p-0.5 overflow-hidden relative bg-white transition" id="shapeFillWrapper">
+                    <input type="color" id="shapeFill" oninput="App.ui.setShapeFill(this.value)" class="absolute -top-2 -left-2 w-[150%] h-16 cursor-pointer" />
                   </div>
                 </div>
+
                 <div class="flex-1">
-                  <label class="compact-label">边框</label>
+                  <label class="compact-label mb-1 block">边框颜色</label>
                   <div class="h-8 border rounded p-0.5 overflow-hidden relative bg-white">
                     <input type="color" id="shapeStroke" oninput="App.ui.setProp('stroke', this.value)" class="absolute -top-2 -left-2 w-[150%] h-16 cursor-pointer" />
                   </div>
                 </div>
+
                 <div class="w-16">
-                  <label class="compact-label">线宽</label>
-                  <input type="number" id="shapeStrokeWidth" min="0" max="20" class="w-full compact-input border rounded" oninput="App.ui.setProp('strokeWidth', parseInt(this.value))" />
+                  <label class="compact-label mb-1 block">线宽</label>
+                  <input type="number" id="shapeStrokeWidth" min="0" max="20" step="0.1" class="w-full compact-input border rounded h-8" oninput="App.ui.setProp('strokeWidth', parseFloat(this.value))" />
                 </div>
               </div>
-
-              <!-- 新增：高级角控制区 (只对矩形/智能路径显示) -->
+              <div class="flex items-center gap-2 pt-2 border-t border-gray-100 mt-2">
+                <label class="flex items-center gap-2 cursor-pointer flex-1 select-none">
+                  <input type="checkbox" id="shapeDashCheck" class="accent-red-600 rounded scale-90" onchange="App.ui.updateShapeDash()" />
+                  <span class="text-gray-600 compact-label mb-0">虚线描边</span>
+                </label>
+                <div class="w-16">
+                  <label class="compact-label">间距</label>
+                  <input type="number" id="shapeDashVal" value="5" min="1" max="50" class="w-full compact-input border rounded" oninput="App.ui.updateShapeDash()" />
+                </div>
+              </div>
               <div id="rectCornerControl" class="hidden space-y-2 pt-2 border-t border-gray-200">
                 <!-- 类型选择与总控 -->
                 <div class="flex items-end gap-2">
@@ -636,12 +1057,19 @@
               </div>
             </section>
 
+            <section id="tableProps" class="hidden space-y-2 border-b border-gray-100 pb-3">
+              <button onclick="App.tableEditor.open(App.canvas.getActiveObject())" class="w-full py-2 bg-slate-800 text-white border border-slate-900/10 rounded font-medium hover:bg-slate-700 transition">
+                <i class="ph ph-table text-base mr-1"></i> 编辑表格
+              </button>
+              <p class="text-[11px] text-gray-400 leading-relaxed">提示：请使用表格工具调整行列、合并拆分以及单元格样式。</p>
+            </section>
+
             <section id="imgProps" class="hidden">
               <button onclick="document.getElementById('imgReplaceInput').click()" class="w-full py-2 bg-gray-100 text-slate-700 border border-gray-300 rounded font-medium hover:bg-gray-200 transition mb-2">
                 <i class="ph ph-arrows-clockwise"></i> 替换图片
               </button>
 
-              <button onclick="App.tools.setAsBackground()" class="w-full py-2 bg-blue-50 text-blue-600 border border-blue-200 rounded font-medium hover:bg-blue-100 transition mb-3">
+              <button onclick="App.tools.setAsBackground()" class="w-full py-2 bg-blue-50 text-gray-400 border border-blue-200 rounded font-medium hover:bg-blue-100 transition mb-3">
                 <i class="ph ph-image-square"></i> 设为背景图片
               </button>
             </section>
@@ -671,8 +1099,8 @@
           <div class="h-8 border-b border-gray-200 flex items-center px-3 bg-gray-100 shrink-0"><span class="font-bold text-gray-500 uppercase text-sm">图层</span></div>
           <div id="layerList" class="flex-1 overflow-y-auto p-1 space-y-0.5 custom-scrollbar"></div>
           <div class="h-9 border-t border-gray-200 bg-white flex items-center justify-around px-2 shrink-0">
-            <button class="p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded" onclick="App.ui.moveLayer('up')" title="上移"><i class="ph ph-arrow-up"></i></button>
-            <button class="p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded" onclick="App.ui.moveLayer('down')" title="下移"><i class="ph ph-arrow-down"></i></button>
+            <button class="p-1 text-gray-500 hover:text-gray-400 hover:bg-blue-50 rounded" onclick="App.ui.moveLayer('up')" title="上移"><i class="ph ph-arrow-up"></i></button>
+            <button class="p-1 text-gray-500 hover:text-gray-400 hover:bg-blue-50 rounded" onclick="App.ui.moveLayer('down')" title="下移"><i class="ph ph-arrow-down"></i></button>
             <div class="w-px h-3 bg-gray-300"></div>
             <button class="p-1 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded" onclick="App.tools.deleteActive()" title="删除 (Delete)"><i class="ph ph-trash"></i></button>
           </div>
@@ -685,12 +1113,7 @@
       <p class="mt-4 text-slate-600 font-medium animate-pulse">正在加载模板...</p>
     </div>
     <script>
-      /**
-       * PaperStudio Logic
-       * 优化版 - 保持原有功能完整
-       */
-
-      // --- 1. 配置与工具 ---
+      // --- 1. 配置与常量定义 ---
       const CONFIG = {
         DPI: 96,
         MM_TO_PX: 3.7795,
@@ -705,16 +1128,32 @@
           Legal: { w: 215.9, h: 355.6 },
           "16开": { w: 210, h: 285 },
           "32开": { w: 185, h: 260 },
-          方信笺纸: { w: 230, h: 230 },
+          方纸: { w: 230, h: 230 },
         },
       };
-
+      const CUSTOM_PROPS = [
+        "id",
+        "selectable",
+        "evented",
+        "lockMovementX",
+        "lockMovementY",
+        "isGrid",
+        "excludeFromExport",
+        // 智能矩形属性
+        "isSmartRect",
+        "cornerConfig",
+        // 表格属性
+        "isTable",
+        "tableData",
+      ];
+      // --- 通用工具类 ---
       const Utils = {
         mm2px: (mm) => mm * CONFIG.MM_TO_PX,
         px2mm: (px) => px / CONFIG.MM_TO_PX,
         pt2px: (pt) => Math.round(pt * CONFIG.PT_TO_PX),
         px2pt: (px) => Math.round(px / CONFIG.PT_TO_PX),
 
+        // 显示 Toast 提示
         toast: (text, type = "info") => {
           const bg = type === "error" ? "linear-gradient(to right, #ff5f6d, #ffc371)" : type === "success" ? "linear-gradient(to right, #00b09b, #96c93d)" : "#333";
           Toastify({
@@ -726,6 +1165,7 @@
           }).showToast();
         },
 
+        // 节流函数
         throttle: (func, limit) => {
           let inThrottle;
           return function () {
@@ -739,6 +1179,7 @@
           };
         },
 
+        // 生成智能矩形路径 (支持圆角/斜角)
         generateSmartRectPath: (w, h, r, style) => {
           const maxR = Math.min(w, h) / 2;
           const tl = Math.min(r.tl, maxR),
@@ -757,10 +1198,44 @@
             path += `L 0 ${tl} `;
             path += tl > 0 ? `A ${tl} ${tl} 0 0 1 ${tl} 0 ` : `L 0 0 `;
           } else {
-            // Bevel
+            // Bevel style
             path += `L ${w} ${tr} L ${w} ${h - br} L ${w - br} ${h} L ${bl} ${h} L 0 ${h - bl} L 0 ${tl} L ${tl} 0 `;
           }
           return path + "Z";
+        },
+
+        // Liang-Barsky 线段裁剪算法
+        clipLine: (x1, y1, x2, y2, left, top, right, bottom) => {
+          let t0 = 0.0,
+            t1 = 1.0;
+          const dx = x2 - x1;
+          const dy = y2 - y1;
+          const p = [-dx, dx, -dy, dy];
+          const q = [x1 - left, right - x1, y1 - top, bottom - y1];
+
+          for (let i = 0; i < 4; i++) {
+            if (p[i] === 0) {
+              if (q[i] < 0) return null; // 平行且在外部
+            } else {
+              const t = q[i] / p[i];
+              if (p[i] < 0) {
+                if (t > t1) return null;
+                if (t > t0) t0 = t;
+              } else {
+                if (t < t0) return null;
+                if (t < t1) t1 = t;
+              }
+            }
+          }
+
+          if (t0 > t1) return null;
+
+          return {
+            x1: x1 + t0 * dx,
+            y1: y1 + t0 * dy,
+            x2: x1 + t1 * dx,
+            y2: y1 + t1 * dy,
+          };
         },
       };
 
@@ -778,9 +1253,21 @@
           selectionQueue: [],
           localFontsLoaded: false,
           hasUnsavedChanges: false,
+          availableFonts: [],
         },
 
+        // 初始化应用
         init: function () {
+          Coloris({
+            el: "#floatBgInput",
+            theme: "polaroid",
+            themeMode: "light",
+            alpha: true,
+            format: "hex",
+            wrap: false,
+            swatches: ["#ffffff", "#000000", "#e11d48", "#2563eb", "#16a34a", "transparent"],
+          });
+
           this.canvas = new fabric.Canvas("paperCanvas", {
             backgroundColor: "#fff",
             preserveObjectStacking: true,
@@ -792,6 +1279,7 @@
             hoverCursor: "move",
           });
 
+          // 全局对象默认样式
           fabric.Object.prototype.set({
             borderColor: "#3b82f6",
             borderScaleFactor: 1.5,
@@ -805,6 +1293,67 @@
             uniScaleKey: "shiftKey",
           });
 
+          // 自定义旋转控制手柄
+          const rotateImg = new Image();
+          rotateImg.src = "./static/rotate.png";
+
+          function renderRotationControl(ctx, left, top, styleOverride, fabricObject) {
+            if (fabricObject.__corner !== this.name) return;
+            const size = this.cornerSize;
+            ctx.save();
+            ctx.translate(left, top);
+            ctx.rotate(fabric.util.degreesToRadians(fabricObject.angle));
+            const cornerAngleAdjustment = { mtr_tr: 0, mtr_br: 90, mtr_bl: 180, mtr_tl: 270 };
+            const adjustment = cornerAngleAdjustment[this.name] || 0;
+            ctx.rotate(fabric.util.degreesToRadians(adjustment));
+
+            if (rotateImg.complete) {
+              ctx.drawImage(rotateImg, -size / 2, -size / 2, size, size);
+            } else {
+              ctx.beginPath();
+              ctx.arc(0, 0, size / 2, 0, 2 * Math.PI);
+              ctx.fillStyle = "#ccc";
+              ctx.fill();
+            }
+            ctx.restore();
+          }
+
+          function createRotationControl(x, y, name) {
+            const offsetDist = 5;
+            return new fabric.Control({
+              name: name,
+              x: x,
+              y: y,
+              offsetX: x * offsetDist * 2.5,
+              offsetY: y * offsetDist * 2.5,
+              actionHandler: fabric.controlsUtils.rotationWithSnapping,
+              actionName: "rotate",
+              cursorStyle: "none",
+              render: renderRotationControl,
+              cornerSize: 24,
+              withConnection: false,
+            });
+          }
+
+          const applyCustomRotationControls = (controlsConfig) => {
+            controlsConfig.mtr_tl = createRotationControl(-0.5, -0.5, "mtr_tl");
+            controlsConfig.mtr_tr = createRotationControl(0.5, -0.5, "mtr_tr");
+            controlsConfig.mtr_bl = createRotationControl(-0.5, 0.5, "mtr_bl");
+            controlsConfig.mtr_br = createRotationControl(0.5, 0.5, "mtr_br");
+            delete controlsConfig.mtr;
+          };
+
+          applyCustomRotationControls(fabric.Object.prototype.controls);
+          applyCustomRotationControls(fabric.Textbox.prototype.controls);
+
+          this.canvas.on("mouse:move", (opt) => {
+            const target = this.canvas.getActiveObject();
+            if (target && target.__corner !== target._lastHoveredCorner) {
+              target._lastHoveredCorner = target.__corner;
+              this.canvas.requestRenderAll();
+            }
+          });
+
           this.paper.init();
           this.events.initCanvasEvents();
           this.history.init();
@@ -813,7 +1362,7 @@
           if ("queryLocalFonts" in window) setTimeout(() => this.loadLocalFonts(), 1000);
         },
 
-        // --- 历史记录 ---
+        // --- 历史记录管理 ---
         history: {
           stack: [],
           index: -1,
@@ -822,7 +1371,8 @@
 
           init: function () {
             const saveHandler = (e) => {
-              if (!this.locked && (!e || !e.target.isGrid)) this.saveState();
+              const target = e?.target;
+              if (!this.locked && (!target || (!target.isGrid && !target.__tableScaling))) this.saveState();
             };
             App.canvas.on({
               "object:modified": saveHandler,
@@ -845,10 +1395,8 @@
             if (this.index < this.stack.length - 1) {
               this.stack = this.stack.slice(0, this.index + 1);
             }
-
-            const json = App.canvas.toJSON(["id", "isGrid", "selectable", "evented", "lockMovementX", "lockMovementY", "cornerConfig", "isSmartRect"]);
+            const json = App.canvas.toJSON(CUSTOM_PROPS);
             json.objects = json.objects.filter((o) => !o.isGrid);
-
             this.stack.push(JSON.stringify(json));
             if (this.stack.length > this.maxSteps) this.stack.shift();
             else this.index++;
@@ -887,30 +1435,816 @@
           },
         },
 
-        // --- 纸张与网格 ---
+        // --- 纸张与网格系统 ---
         paper: {
+          // 纸张类型默认参数配置
+          defaults: {
+            blank: { paperBgColor: "#ffffff", marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0 },
+            ruled: { rowCount: 20, strokeWidth: 1, gridColor: "#e11d48", doubleFirst: true, doubleLast: true, ruledClosed: false },
+            grid: { gridColumns: 24, strokeWidth: 1, gridColor: "#e11d48", doubleBorder: true, gridDashed: false },
+            composition: { columnCount: 12, rowCount: 15, strokeWidth: 1, gridColor: "#e11d48", doubleBorder: true },
+            english: { rowCount: 15, englishLineGap: 3, englishGroupGap: 10, englishOffset: 0, strokeWidth: 1, gridColor: "#8a91a8" },
+            music: { staffCount: 12, staffLineGap: 2.5, staffGroupGap: 12, strokeWidth: 1, staffLineCount: 5, gridColor: "#8a91a8" },
+            tianzige: { tianSize: 18, tianInnerScale: 0.5, strokeWidth: 1, doubleBorder: true },
+            mizige: { tianSize: 18, tianInnerScale: 0.5, strokeWidth: 1, doubleBorder: true, gridDashed: true },
+            huizige: { tianSize: 18, tianInnerScale: 0.4, strokeWidth: 1, doubleBorder: true, huiInnerW: 8, huiInnerH: 10, gridDashed: true },
+            jiugongge: { tianSize: 18, tianInnerScale: 0.4, strokeWidth: 1, doubleBorder: true, jiuCols: 3, jiuRows: 3 },
+            dots: { dotSpace: 5, dotSize: 0.5, gridColor: "#e11d48", marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, otStagger: false },
+            triangle: { geoSize: 10, strokeWidth: 1, gridColor: "#e11d48", marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0 },
+            hexagon: { geoSize: 8, strokeWidth: 1, gridColor: "#e11d48", marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0 },
+          },
+
+          renderers: {
+            // 0.空白纸渲染器
+            blank: function (cfg, canvas) {
+              return;
+            },
+            // 1. 横线纸渲染器
+            ruled: function (cfg, canvas, opts = {}) {
+              if (cfg.rowCount <= 0) return;
+
+              const GAP = 3;
+              const thickW = cfg.strokeWidth + 2;
+
+              const padTop = cfg.doubleFirst ? GAP + thickW / 2 : cfg.strokeWidth / 2;
+              const padBottom = cfg.doubleLast ? GAP + thickW / 2 : cfg.strokeWidth / 2;
+              const padX = cfg.ruledClosed && cfg.ruledClosedDouble ? GAP + thickW / 2 : cfg.strokeWidth / 2;
+
+              const startX = Math.max(cfg.marginLeft, padX);
+              const endX = App.state.baseWidth - Math.max(cfg.marginRight, padX);
+              const startY = Math.max(cfg.marginTop, padTop) + (opts.startYOffset || 0);
+              const contentHeight = App.state.baseHeight - Math.max(cfg.marginBottom, padBottom) - startY;
+
+              if (endX - startX <= 0 || contentHeight <= 0) return;
+
+              const lineHeight = contentHeight / cfg.rowCount;
+              const gridLines = [];
+              const dashArr = cfg.gridDashed ? [cfg.gridDashArray, cfg.gridDashArray] : null;
+
+              // 计算闭合边框的坐标边界
+              const outerTop = cfg.doubleFirst ? startY - GAP : startY;
+              const outerBottom = cfg.doubleLast ? startY + cfg.rowCount * lineHeight + GAP : startY + cfg.rowCount * lineHeight;
+              const innerTop = cfg.doubleFirst ? startY + GAP : startY;
+              const innerBottom = cfg.doubleLast ? startY + cfg.rowCount * lineHeight - GAP : startY + cfg.rowCount * lineHeight;
+
+              let xOuterL = startX,
+                xOuterR = endX;
+              let xInnerL = startX,
+                xInnerR = endX;
+
+              if (cfg.ruledClosed && cfg.ruledClosedDouble) {
+                xOuterL = startX - GAP;
+                xOuterR = endX + GAP;
+                xInnerL = startX + GAP;
+                xInnerR = endX - GAP;
+              }
+
+              const addLine = (y, w, xStart, xEnd, extra = {}) => {
+                gridLines.push(
+                  new fabric.Line([xStart, y, xEnd, y], {
+                    stroke: cfg.gridColor,
+                    strokeWidth: w,
+                    selectable: false,
+                    evented: false,
+                    isGrid: true,
+                    strokeLineCap: "butt",
+                    excludeFromExport: true,
+                    originX: "center",
+                    originY: "center",
+                    ...extra,
+                  })
+                );
+              };
+
+              for (let i = 0; i <= cfg.rowCount; i++) {
+                const y = startY + i * lineHeight;
+                if (i === 0 && cfg.doubleFirst) {
+                  addLine(y - GAP, thickW, xOuterL, xOuterR);
+                  addLine(y + GAP, Math.max(1, cfg.strokeWidth), xInnerL, xInnerR);
+                } else if (i === cfg.rowCount && cfg.doubleLast) {
+                  addLine(y - GAP, Math.max(1, cfg.strokeWidth), xInnerL, xInnerR);
+                  addLine(y + GAP, thickW, xOuterL, xOuterR);
+                } else {
+                  addLine(y, cfg.strokeWidth, xInnerL, xInnerR, dashArr && i > 0 && i < cfg.rowCount ? { strokeDashArray: dashArr } : {});
+                }
+              }
+
+              if (cfg.ruledClosed) {
+                const edgeBase = { stroke: cfg.gridColor, selectable: false, evented: false, isGrid: true, excludeFromExport: true, originX: "center", originY: "center", strokeLineCap: "butt" };
+                const extendDist = thickW / 2;
+                const outerY1 = outerTop - extendDist;
+                const outerY2 = outerBottom + extendDist;
+
+                const drawEdge = (x, side) => {
+                  if (cfg.ruledClosedDouble) {
+                    const outerX = side === "left" ? x - GAP : x + GAP;
+                    const innerX = side === "left" ? x + GAP : x - GAP;
+                    const innerY1 = innerTop - Math.max(1, cfg.strokeWidth) / 2;
+                    const innerY2 = innerBottom + Math.max(1, cfg.strokeWidth) / 2;
+                    return [
+                      new fabric.Line([outerX, outerY1, outerX, outerY2], { ...edgeBase, strokeWidth: thickW }),
+                      new fabric.Line([innerX, innerY1, innerX, innerY2], { ...edgeBase, strokeWidth: Math.max(1, cfg.strokeWidth) }),
+                    ];
+                  }
+                  return [new fabric.Line([x, outerY1, x, outerY2], { ...edgeBase, strokeWidth: Math.max(1, cfg.strokeWidth) })];
+                };
+                [...drawEdge(startX, "left"), ...drawEdge(endX, "right")].forEach((l) => gridLines.push(l));
+              }
+
+              gridLines.forEach((l) => {
+                canvas.add(l);
+                canvas.sendToBack(l);
+              });
+            },
+
+            // 2. 英文纸渲染器
+            english: function (cfg, canvas) {
+              const startX = cfg.marginLeft;
+              const endX = App.state.baseWidth - cfg.marginRight;
+              const startY = cfg.marginTop + cfg.englishOffset;
+              const usableHeight = App.state.baseHeight - startY - cfg.marginBottom;
+              if (usableHeight <= 0 || endX - startX <= 0) return;
+
+              const lineGap = Math.max(cfg.englishLineGap, 1);
+              const groupGap = Math.max(0, cfg.englishGroupGap ?? cfg.englishLineGap);
+              const cellHeight = lineGap * 3;
+              const maxGroups = Math.max(0, Math.floor((usableHeight + groupGap) / (cellHeight + groupGap)));
+              const staffCount = Math.min(cfg.rowCount, maxGroups);
+              if (staffCount <= 0) return;
+
+              const dashArr = cfg.gridDashed ? [cfg.gridDashArray, cfg.gridDashArray] : null;
+              const lines = [];
+
+              for (let s = 0; s < staffCount; s++) {
+                const base = startY + s * (cellHeight + groupGap);
+                for (let i = 0; i < 4; i++) {
+                  const y = base + i * lineGap;
+                  lines.push(
+                    new fabric.Line([startX, y, endX, y], {
+                      stroke: cfg.gridColor,
+                      strokeWidth: cfg.strokeWidth,
+                      strokeDashArray: i === 2 || !dashArr ? null : dashArr,
+                      selectable: false,
+                      evented: false,
+                      isGrid: true,
+                      excludeFromExport: true,
+                      originX: "center",
+                      originY: "center",
+                    })
+                  );
+                }
+              }
+              lines.forEach((l) => {
+                canvas.add(l);
+                canvas.sendToBack(l);
+              });
+            },
+
+            // 3. 方格纸渲染器
+            grid: function (cfg, canvas) {
+              const startX = cfg.marginLeft;
+              const endX = App.state.baseWidth - cfg.marginRight;
+              const startY = cfg.marginTop;
+              const endY = App.state.baseHeight - cfg.marginBottom;
+              if (endX - startX <= 0 || endY - startY <= 0) return;
+
+              const cols = Math.max(1, cfg.gridColumns || 1);
+              const cellSizeX = (endX - startX) / cols;
+              let rows = Math.max(1, Math.round((endY - startY) / cellSizeX));
+              let cellSize = (endY - startY) / rows;
+              cellSize = Math.min(cellSize, cellSizeX);
+              rows = Math.max(1, Math.round((endY - startY) / cellSize));
+              cellSize = (endY - startY) / rows;
+
+              const gridW = cellSize * cols;
+              const gridH = endY - startY;
+              const dash = cfg.gridDashed ? [cfg.gridDashArray, cfg.gridDashArray] : null;
+              const lines = [];
+
+              for (let i = 1; i < cols; i++) {
+                const x = startX + i * cellSize;
+                lines.push(
+                  new fabric.Line([x, startY, x, startY + gridH], {
+                    stroke: cfg.gridColor,
+                    strokeWidth: cfg.strokeWidth,
+                    strokeDashArray: dash,
+                    selectable: false,
+                    evented: false,
+                    isGrid: true,
+                    excludeFromExport: true,
+                    originX: "center",
+                    originY: "center",
+                    strokeLineCap: "butt",
+                  })
+                );
+              }
+              for (let j = 1; j < rows; j++) {
+                const y = startY + j * cellSize;
+                lines.push(
+                  new fabric.Line([startX, y, startX + gridW, y], {
+                    stroke: cfg.gridColor,
+                    strokeWidth: cfg.strokeWidth,
+                    strokeDashArray: dash,
+                    selectable: false,
+                    evented: false,
+                    isGrid: true,
+                    excludeFromExport: true,
+                    originX: "center",
+                    originY: "center",
+                    strokeLineCap: "butt",
+                  })
+                );
+              }
+
+              this._drawBorder(canvas, startX, startY, gridW, gridH, cfg);
+
+              lines.forEach((l) => {
+                canvas.add(l);
+                canvas.sendToBack(l);
+              });
+            },
+
+            // 4. 作文纸渲染器
+            composition: function (cfg, canvas) {
+              if (cfg.rowCount <= 0) return;
+              const startX = cfg.marginLeft;
+              const startY = cfg.marginTop;
+              const availW = App.state.baseWidth - cfg.marginLeft - cfg.marginRight;
+              const availH = App.state.baseHeight - cfg.marginTop - cfg.marginBottom;
+
+              if (availW <= 0 || availH <= 0) return;
+
+              const colCount = Math.max(1, cfg.columnCount);
+              const rowCount = Math.max(1, cfg.rowCount);
+
+              // 强制填满宽度的单元格宽
+              const cellW = availW / colCount;
+              // 强制填满高度的行高（含间距）
+              const totalRowH = availH / rowCount;
+
+              // 设定文字格与行间距的比例 (例如 0.75 是格子高度，剩余是行间距)
+              const cellH = totalRowH * 0.75;
+
+              const lines = [];
+              const hLineOpts = {
+                stroke: cfg.gridColor,
+                strokeWidth: cfg.strokeWidth,
+                selectable: false,
+                evented: false,
+                isGrid: true,
+                excludeFromExport: true,
+                originX: "center",
+                originY: "center",
+                strokeLineCap: "butt",
+              };
+
+              for (let r = 0; r < rowCount; r++) {
+                const currentTop = startY + r * totalRowH;
+                const currentBottom = currentTop + cellH;
+
+                // 绘制该行的竖线
+                for (let c = 1; c < colCount; c++) {
+                  const x = startX + c * cellW;
+                  lines.push(new fabric.Line([x, currentTop, x, currentBottom], hLineOpts));
+                }
+
+                // 绘制该行的上下横线
+                lines.push(new fabric.Line([startX, currentTop, startX + availW, currentTop], hLineOpts));
+                lines.push(new fabric.Line([startX, currentBottom, startX + availW, currentBottom], hLineOpts));
+              }
+
+              // 绘制整体外框
+              this._drawBorder(canvas, startX, startY, availW, availH, cfg);
+
+              lines.forEach((l) => {
+                canvas.add(l);
+                canvas.sendToBack(l);
+              });
+            },
+
+            music: function (cfg, canvas) {
+              const startX = cfg.marginLeft;
+              const endX = App.state.baseWidth - cfg.marginRight;
+              const availHeight = App.state.baseHeight - cfg.marginTop - cfg.marginBottom;
+              if (availHeight <= 0 || endX - startX <= 0) return;
+
+              let lineGap = Math.max(1, cfg.staffLineGap);
+              let groupGap = Math.max(0, cfg.staffGroupGap);
+
+              const lineCount = Math.max(1, cfg.staffLineCount);
+              const spaceCount = Math.max(0, lineCount - 1);
+              const staffHeight = lineGap * spaceCount;
+
+              let totalHeight = cfg.staffCount * staffHeight + (cfg.staffCount - 1) * groupGap;
+
+              if (totalHeight > availHeight) {
+                const scale = availHeight / totalHeight;
+                lineGap *= scale;
+                groupGap *= scale;
+              }
+
+              const finalStaffHeight = lineGap * spaceCount;
+              const startY = cfg.marginTop + (availHeight - (cfg.staffCount * finalStaffHeight + (cfg.staffCount - 1) * groupGap)) / 2;
+
+              const lines = [];
+
+              for (let s = 0; s < cfg.staffCount; s++) {
+                const top = startY + s * (finalStaffHeight + groupGap);
+
+                for (let i = 0; i < lineCount; i++) {
+                  const y = top + i * lineGap;
+                  lines.push(
+                    new fabric.Line([startX, y, endX, y], {
+                      stroke: cfg.gridColor,
+                      strokeWidth: cfg.strokeWidth,
+                      selectable: false,
+                      evented: false,
+                      isGrid: true,
+                      excludeFromExport: true,
+                      originX: "center",
+                      originY: "center",
+                    })
+                  );
+                }
+              }
+              lines.forEach((l) => {
+                canvas.add(l);
+                canvas.sendToBack(l);
+              });
+            },
+
+            // --- 辅助：田字格/米字格/回字格/九宫格通用绘制 ---
+            drawTianBase: function (cfg, canvas, options = {}) {
+              const borderPad = cfg.doubleBorder ? 4 + cfg.strokeWidth : cfg.strokeWidth / 2;
+              const startX = Math.max(cfg.marginLeft, borderPad);
+              const startY = Math.max(cfg.marginTop, borderPad);
+              const endX = App.state.baseWidth - Math.max(cfg.marginRight, borderPad);
+              const endY = App.state.baseHeight - Math.max(cfg.marginBottom, borderPad);
+
+              if (endX - startX <= 0 || endY - startY <= 0) return;
+
+              let baseSize = Math.max(6, cfg.tianSize);
+              let cols = Math.max(1, Math.round((endX - startX) / baseSize));
+              let rows = Math.max(1, Math.round((endY - startY) / baseSize));
+              let size = Math.min((endX - startX) / cols, (endY - startY) / rows);
+              rows = Math.max(1, Math.round((endY - startY) / size));
+              size = (endY - startY) / rows;
+              cols = Math.max(1, Math.round((endX - startX) / size));
+              size = Math.min(size, (endX - startX) / cols);
+              const gridW = cols * size;
+              const gridH = rows * size;
+
+              const scale = cfg.tianInnerScale || 0.4;
+              const calculatedWidth = cfg.strokeWidth * scale;
+              const innerWidth = Math.max(0.3, Math.min(calculatedWidth, cfg.strokeWidth - 0.1));
+              const innerDash = cfg.gridDashed ? [cfg.gridDashArray, cfg.gridDashArray] : null;
+
+              const lines = [];
+              // 绘制外框网格线
+              for (let c = 1; c < cols; c++) {
+                const x = startX + c * size;
+                lines.push(
+                  new fabric.Line([x, startY, x, startY + gridH], {
+                    stroke: cfg.gridColor,
+                    strokeWidth: cfg.strokeWidth,
+                    selectable: false,
+                    evented: false,
+                    isGrid: true,
+                    excludeFromExport: true,
+                    originX: "center",
+                    originY: "center",
+                    strokeLineCap: "butt",
+                  })
+                );
+              }
+              for (let r = 1; r < rows; r++) {
+                const y = startY + r * size;
+                lines.push(
+                  new fabric.Line([startX, y, startX + gridW, y], {
+                    stroke: cfg.gridColor,
+                    strokeWidth: cfg.strokeWidth,
+                    selectable: false,
+                    evented: false,
+                    isGrid: true,
+                    excludeFromExport: true,
+                    originX: "center",
+                    originY: "center",
+                    strokeLineCap: "butt",
+                  })
+                );
+              }
+
+              const innerOpts = { selectable: false, evented: false, isGrid: true, excludeFromExport: true, originX: "center", originY: "center", strokeLineCap: "butt" };
+
+              // 绘制内部结构
+              for (let c = 0; c < cols; c++) {
+                for (let r = 0; r < rows; r++) {
+                  const x = startX + c * size;
+                  const y = startY + r * size;
+                  const cx = x + size / 2;
+                  const cy = y + size / 2;
+
+                  if (options.subGrid) {
+                    const nCols = Math.max(1, cfg.jiuCols);
+                    const nRows = Math.max(1, cfg.jiuRows);
+                    if (nCols > 1) {
+                      const stepX = size / nCols;
+                      for (let i = 1; i < nCols; i++) {
+                        const lx = x + stepX * i;
+                        lines.push(new fabric.Line([lx, y, lx, y + size], { stroke: cfg.gridColor, strokeWidth: innerWidth, strokeDashArray: innerDash, ...innerOpts }));
+                      }
+                    }
+                    if (nRows > 1) {
+                      const stepY = size / nRows;
+                      for (let j = 1; j < nRows; j++) {
+                        const ly = y + stepY * j;
+                        lines.push(new fabric.Line([x, ly, x + size, ly], { stroke: cfg.gridColor, strokeWidth: innerWidth, strokeDashArray: innerDash, ...innerOpts }));
+                      }
+                    }
+                  }
+
+                  if (options.cross !== false) {
+                    lines.push(new fabric.Line([x, cy, x + size, cy], { stroke: cfg.gridColor, strokeWidth: innerWidth, strokeDashArray: innerDash, ...innerOpts }));
+                    lines.push(new fabric.Line([cx, y, cx, y + size], { stroke: cfg.gridColor, strokeWidth: innerWidth, strokeDashArray: innerDash, ...innerOpts }));
+                  }
+                  if (options.diagonals) {
+                    lines.push(new fabric.Line([x, y, x + size, y + size], { stroke: cfg.gridColor, strokeWidth: innerWidth, strokeDashArray: innerDash, ...innerOpts }));
+                    lines.push(new fabric.Line([x, y + size, x + size, y], { stroke: cfg.gridColor, strokeWidth: innerWidth, strokeDashArray: innerDash, ...innerOpts }));
+                  }
+                  if (options.innerSquare) {
+                    const safeW = Math.min(cfg.huiInnerW, size);
+                    const safeH = Math.min(cfg.huiInnerH, size);
+                    lines.push(
+                      new fabric.Rect({
+                        left: cx,
+                        top: cy,
+                        width: safeW,
+                        height: safeH,
+                        fill: "transparent",
+                        stroke: cfg.gridColor,
+                        strokeWidth: innerWidth,
+                        strokeDashArray: innerDash,
+                        ...innerOpts,
+                      })
+                    );
+                  }
+                }
+              }
+
+              this._drawBorder(canvas, startX, startY, gridW, gridH, cfg);
+              lines.forEach((l) => {
+                canvas.add(l);
+                canvas.sendToBack(l);
+              });
+            },
+
+            // 6. 点阵纸 (严格过滤版)
+            dots: function (cfg, canvas) {
+              const startX = cfg.marginLeft;
+              const startY = cfg.marginTop;
+              const endX = App.state.baseWidth - cfg.marginRight;
+              const endY = App.state.baseHeight - cfg.marginBottom;
+              const w = endX - startX;
+              const h = endY - startY;
+
+              if (w <= 0 || h <= 0) return;
+
+              const space = Math.max(2, cfg.dotSpace);
+              const r = cfg.dotSize / 2;
+              const epsilon = 0.01;
+
+              const rowHeight = cfg.dotStagger ? (space * Math.sqrt(3)) / 2 : space;
+              const cols = Math.ceil(w / space);
+              const rows = Math.ceil(h / rowHeight);
+
+              const contentW = cols * space;
+              const contentH = rows * rowHeight;
+              const offsetX = (w - contentW) / 2 + (cfg.dotStagger ? space / 4 : 0);
+              const offsetY = (h - contentH) / 2;
+
+              let pathData = "";
+
+              for (let row = -1; row <= rows + 1; row++) {
+                const isStagger = cfg.dotStagger && row % 2 !== 0;
+                const staggerX = isStagger ? space / 2 : 0;
+
+                for (let col = -1; col <= cols + 1; col++) {
+                  const cx = startX + offsetX + col * space + staggerX;
+                  const cy = startY + offsetY + row * rowHeight;
+
+                  // 过滤超出边距的点
+                  if (cx - r < startX - epsilon || cx + r > endX + epsilon || cy - r < startY - epsilon || cy + r > endY + epsilon) {
+                    continue;
+                  }
+
+                  const cxF = cx.toFixed(2);
+                  const cy1 = (cy - r).toFixed(2);
+                  const cy2 = (cy + r).toFixed(2);
+                  const rF = r.toFixed(2);
+                  pathData += `M ${cxF} ${cy1} A ${rF} ${rF} 0 1 1 ${cxF} ${cy2} A ${rF} ${rF} 0 1 1 ${cxF} ${cy1} `;
+                }
+              }
+
+              this._addPathToCanvas(canvas, pathData, cfg, {
+                objectCaching: false,
+                stroke: null,
+                strokeWidth: 0,
+                fill: cfg.gridColor,
+              });
+            },
+
+            // 7. 三角形网格 (Liang-Barsky 裁剪)
+            triangle: function (cfg, canvas) {
+              const startX = cfg.marginLeft;
+              const startY = cfg.marginTop;
+              const endX = App.state.baseWidth - cfg.marginRight;
+              const endY = App.state.baseHeight - cfg.marginBottom;
+              const w = endX - startX;
+              const h = endY - startY;
+
+              if (w <= 0 || h <= 0) return;
+
+              const side = Math.max(2, cfg.geoSize);
+              const triHeight = (Math.sqrt(3) / 2) * side;
+              const cols = Math.ceil(w / side) + 2;
+              const rows = Math.ceil(h / triHeight) + 2;
+
+              let pathData = "";
+
+              const addClippedLine = (x1, y1, x2, y2) => {
+                const line = Utils.clipLine(x1, y1, x2, y2, startX, startY, endX, endY);
+                if (line) {
+                  pathData += `M ${line.x1.toFixed(2)} ${line.y1.toFixed(2)} L ${line.x2.toFixed(2)} ${line.y2.toFixed(2)} `;
+                }
+              };
+
+              for (let row = -1; row < rows; row++) {
+                const yBase = startY + row * triHeight;
+                const offsetX = row % 2 === 0 ? 0 : side / 2;
+                for (let col = -1; col < cols; col++) {
+                  const cx = startX + col * side + offsetX;
+                  if (cx < startX - side && cx > endX + side && yBase < startY - triHeight && yBase > endY + triHeight) continue;
+
+                  addClippedLine(cx, yBase, cx - side / 2, yBase + triHeight);
+                  addClippedLine(cx - side / 2, yBase + triHeight, cx + side / 2, yBase + triHeight);
+                  addClippedLine(cx + side / 2, yBase + triHeight, cx, yBase);
+                }
+              }
+
+              const dash = cfg.gridDashed ? [cfg.gridDashArray, cfg.gridDashArray] : null;
+              this._addPathToCanvas(canvas, pathData, cfg, {
+                objectCaching: false,
+                fill: "transparent",
+                strokeLineCap: "square",
+                strokeDashArray: dash, // 传入虚线配置
+              });
+            },
+
+            // 8. 六边形网格 (Liang-Barsky 裁剪)
+            hexagon: function (cfg, canvas) {
+              const startX = cfg.marginLeft;
+              const startY = cfg.marginTop;
+              const endX = App.state.baseWidth - cfg.marginRight;
+              const endY = App.state.baseHeight - cfg.marginBottom;
+              const w = endX - startX;
+              const h = endY - startY;
+
+              if (w <= 0 || h <= 0) return;
+
+              const r = cfg.geoSize;
+              const hexW = Math.sqrt(3) * r;
+              const vertDist = 1.5 * r;
+              const cols = Math.ceil(w / hexW) + 2;
+              const rows = Math.ceil(h / vertDist) + 2;
+
+              let pathData = "";
+
+              const addClippedLine = (x1, y1, x2, y2) => {
+                const line = Utils.clipLine(x1, y1, x2, y2, startX, startY, endX, endY);
+                if (line) {
+                  pathData += `M ${line.x1.toFixed(2)} ${line.y1.toFixed(2)} L ${line.x2.toFixed(2)} ${line.y2.toFixed(2)} `;
+                }
+              };
+
+              for (let row = -1; row < rows; row++) {
+                for (let col = -1; col < cols; col++) {
+                  const xOffset = row % 2 !== 0 ? hexW / 2 : 0;
+                  const cx = startX + col * hexW + xOffset;
+                  const cy = startY + row * vertDist;
+
+                  if (cx < startX - hexW || cx > endX + hexW || cy < startY - r || cy > endY + r) continue;
+
+                  const pts = [];
+                  for (let i = 0; i < 6; i++) {
+                    const angle = (Math.PI / 180) * (30 + 60 * i);
+                    pts.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
+                  }
+                  for (let i = 0; i < 6; i++) {
+                    addClippedLine(pts[i].x, pts[i].y, pts[(i + 1) % 6].x, pts[(i + 1) % 6].y);
+                  }
+                }
+              }
+
+              const dash = cfg.gridDashed ? [cfg.gridDashArray, cfg.gridDashArray] : null;
+              this._addPathToCanvas(canvas, pathData, cfg, {
+                objectCaching: false,
+                fill: "transparent",
+                strokeLineCap: "square",
+                strokeDashArray: dash, // 传入虚线配置
+              });
+            },
+
+            // --- 通用路径添加方法 ---
+            _addPathToCanvas: function (canvas, pathData, cfg, styleOpts) {
+              if (!pathData || pathData.length === 0) return;
+              const opts = {
+                fill: "transparent",
+                stroke: cfg.gridColor,
+                strokeWidth: cfg.strokeWidth,
+                selectable: false,
+                evented: false,
+                isGrid: true,
+                excludeFromExport: true,
+                objectCaching: false,
+                noScaleCache: true,
+                strokeLineCap: "round",
+                strokeLineJoin: "round",
+                ...(styleOpts || {}),
+              };
+              const path = new fabric.Path(pathData, opts);
+              canvas.add(path);
+              canvas.sendToBack(path);
+            },
+
+            tianzige: function (cfg, canvas) {
+              this.drawTianBase(cfg, canvas, { cross: true });
+            },
+            mizige: function (cfg, canvas) {
+              this.drawTianBase(cfg, canvas, { cross: true, diagonals: true });
+            },
+            huizige: function (cfg, canvas) {
+              this.drawTianBase(cfg, canvas, { cross: true, innerSquare: true, squareRatio: cfg.tianInnerScale || 0.5 });
+            },
+            jiugongge: function (cfg, canvas) {
+              this.drawTianBase(cfg, canvas, { subGrid: true, cross: false, diagonals: false, innerSquare: false });
+            },
+
+            // --- 边框绘制方法 ---
+            _drawBorder: function (canvas, x, y, w, h, cfg) {
+              if (cfg.doubleBorder) this._drawDoubleFrame(canvas, x, y, w, h, cfg);
+              else this._drawSingleFrame(canvas, x, y, w, h, cfg);
+            },
+
+            _drawSingleFrame: function (canvas, x, y, w, h, cfg) {
+              canvas.add(
+                new fabric.Rect({
+                  fill: "transparent",
+                  stroke: cfg.gridColor,
+                  selectable: false,
+                  evented: false,
+                  isGrid: true,
+                  excludeFromExport: true,
+                  originX: "left",
+                  originY: "top",
+                  objectCaching: false,
+                  strokeLineCap: "square",
+                  strokeLineJoin: "miter",
+                  left: x,
+                  top: y,
+                  width: w,
+                  height: h,
+                  strokeWidth: cfg.strokeWidth,
+                })
+              );
+            },
+
+            _drawDoubleFrame: function (canvas, x, y, w, h, cfg) {
+              const GAP = 3;
+              const thickW = cfg.strokeWidth + 2;
+              const thinW = Math.max(1, cfg.strokeWidth);
+              const common = {
+                fill: "transparent",
+                stroke: cfg.gridColor,
+                selectable: false,
+                evented: false,
+                isGrid: true,
+                excludeFromExport: true,
+                originX: "center",
+                originY: "center",
+                strokeLineJoin: "miter",
+                strokeLineCap: "square",
+                objectCaching: false,
+              };
+              const centerX = x + w / 2;
+              const centerY = y + h / 2;
+
+              canvas.add(new fabric.Rect({ ...common, left: centerX, top: centerY, width: w, height: h, strokeWidth: thinW }));
+              const offset = GAP + thinW / 2 + thickW / 2;
+              canvas.add(new fabric.Rect({ ...common, left: centerX, top: centerY, width: w + offset * 2, height: h + offset * 2, strokeWidth: thickW }));
+            },
+          },
+
+          // 纸张初始化
           init: function () {
+            const type = document.getElementById("paperType")?.value || "ruled";
+            this.changeType(type, true);
             this.updateSize();
+          },
+
+          changeType: function (type, applyDefaults = false) {
+            App.state.paperType = type;
+
+            document.querySelectorAll("[data-paper-types]").forEach((el) => {
+              const types = (el.dataset.paperTypes || "").split(",").map((t) => t.trim());
+              el.classList.toggle("hidden", !types.includes(type));
+            });
+
+            if (applyDefaults && this.defaults[type]) {
+              const d = this.defaults[type];
+
+              Object.keys(d).forEach((key) => {
+                const el = document.getElementById(key);
+                if (el) {
+                  if (el.type === "checkbox") {
+                    el.checked = !!d[key];
+                  } else {
+                    el.value = d[key];
+                  }
+                }
+              });
+            }
+
+            this.updateSettings();
+          },
+          updateSettings: function () {
+            const rc = document.getElementById("rowCount");
+            if (rc) document.getElementById("rowCountDisplay").innerText = rc.value;
+            const cc = document.getElementById("columnCount");
+            if (cc) document.getElementById("columnCountDisplay").innerText = cc.value;
+            const gc = document.getElementById("gridColumns");
+            if (gc) document.getElementById("gridColDisplay").innerText = gc.value;
+            App.state.hasUnsavedChanges = true;
+            this.drawPaper();
           },
 
           getSettings: function () {
             const el = (id) => document.getElementById(id);
             const val = (id, def) => (el(id) ? el(id).value : def);
+            const mmVal = (id, def) => {
+              if (!el(id)) return def;
+              const n = parseFloat(el(id).value);
+              return isNaN(n) ? def : n;
+            };
+            const intVal = (id, def) => {
+              const n = parseInt(val(id, def), 10);
+              return isNaN(n) ? def : n;
+            };
+            const floatVal = (id, def) => {
+              const n = parseFloat(val(id, def));
+              return isNaN(n) ? def : n;
+            };
             const chk = (id) => (el(id) ? el(id).checked : false);
 
             return {
-              marginTop: parseInt(val("marginTop", 37)) * CONFIG.MM_TO_PX,
-              marginBottom: parseInt(val("marginBottom", 35)) * CONFIG.MM_TO_PX,
-              marginLeft: parseInt(val("marginLeft", 28)) * CONFIG.MM_TO_PX,
-              marginRight: parseInt(val("marginRight", 26)) * CONFIG.MM_TO_PX,
-              rowCount: parseInt(val("rowCount", 20)),
+              customW: intVal("customW", 210),
+              customH: intVal("customH", 297),
+              type: val("paperType", "ruled"),
+              marginTop: mmVal("marginTop", 25) * CONFIG.MM_TO_PX,
+              marginBottom: mmVal("marginBottom", 25) * CONFIG.MM_TO_PX,
+              marginLeft: mmVal("marginLeft", 20) * CONFIG.MM_TO_PX,
+              marginRight: mmVal("marginRight", 20) * CONFIG.MM_TO_PX,
+              rowCount: intVal("rowCount", 20),
               gridColor: val("gridColor", "#e11d48"),
-              strokeWidth: parseInt(val("strokeWidth", 1)),
+              strokeWidth: floatVal("strokeWidth", 1),
               doubleFirst: chk("doubleFirst"),
+              paperOrientation: chk("paperOrientation"),
+              dual: chk("paperDual"),
               doubleLast: chk("doubleLast"),
               gridDashed: chk("gridDashed"),
-              gridDashArray: parseInt(val("gridDashArray", 4)),
+              gridDashArray: intVal("gridDashArray", 4),
               paperBgColor: val("paperBgColor", "#ffffff"),
+              englishOffset: mmVal("englishOffset", 0) * CONFIG.MM_TO_PX,
+              englishLineGap: mmVal("englishLineGap", 6) * CONFIG.MM_TO_PX,
+              englishGroupGap: mmVal("englishGroupGap", 6) * CONFIG.MM_TO_PX,
+              columnCount: intVal("columnCount", 12),
+              gridColumns: intVal("gridColumns", 24),
+              staffCount: intVal("staffCount", 8),
+              staffLineGap: mmVal("staffLineGap", 3) * CONFIG.MM_TO_PX,
+              staffGroupGap: mmVal("staffGroupGap", 12) * CONFIG.MM_TO_PX,
+              staffLineCount: intVal("staffLineCount", 5),
+              tianSize: mmVal("tianSize", 20) * CONFIG.MM_TO_PX,
+              geoSize: mmVal("geoSize", 10) * CONFIG.MM_TO_PX,
+              tianInnerScale: floatVal("tianInnerScale", 0.5),
+              ruledClosed: chk("ruledClosed"),
+              dotStagger: chk("dotStagger"),
+              ruledClosedDouble: chk("ruledClosedDouble"),
+              doubleBorder: chk("doubleBorder"),
+              huiInnerW: mmVal("huiInnerW", 10) * CONFIG.MM_TO_PX,
+              huiInnerH: mmVal("huiInnerH", 10) * CONFIG.MM_TO_PX,
+              dotSpace: mmVal("dotSpace", 5) * CONFIG.MM_TO_PX,
+              dotSize: mmVal("dotSize", 1) * CONFIG.MM_TO_PX,
+              jiuCols: intVal("jiuCols", 3),
+              jiuRows: intVal("jiuRows", 3),
             };
           },
 
@@ -918,7 +2252,6 @@
             const type = document.getElementById("paperSize").value;
             const customDiv = document.getElementById("customSizeInputs");
             let w, h;
-
             if (type === "CUSTOM") {
               customDiv.classList.remove("hidden");
               w = parseInt(document.getElementById("customW").value) || 210;
@@ -928,81 +2261,91 @@
               w = CONFIG.SIZES[type].w;
               h = CONFIG.SIZES[type].h;
             }
-
             const isLandscape = document.getElementById("paperOrientation").checked;
+
             App.state.currentPaper.w = isLandscape ? Math.max(w, h) : Math.min(w, h);
             App.state.currentPaper.h = isLandscape ? Math.min(w, h) : Math.max(w, h);
 
-            App.state.baseWidth = App.state.currentPaper.w * CONFIG.MM_TO_PX;
-            App.state.baseHeight = App.state.currentPaper.h * CONFIG.MM_TO_PX;
-
-            document.getElementById("canvasSizeLabel").innerText = `${type} - ${isLandscape ? "横向" : "纵向"} (${App.state.currentPaper.w} x ${App.state.currentPaper.h} mm)`;
-
-            App.zoom.apply(App.state.zoom);
-            App.state.hasUnsavedChanges = true;
-            this.drawGrid();
-          },
-
-          updateSettings: function () {
-            const rc = document.getElementById("rowCount");
-            if (rc) document.getElementById("rowCountDisplay").innerText = rc.value;
-            App.state.hasUnsavedChanges = true;
-            this.drawGrid();
-          },
-
-          drawGrid: function () {
-            const cfg = this.getSettings();
-            const canvas = App.canvas;
-            canvas.setBackgroundColor(cfg.paperBgColor, canvas.requestRenderAll.bind(canvas));
-
-            // 清除旧网格
-            canvas.remove(...canvas.getObjects().filter((o) => o.isGrid));
-
-            if (cfg.rowCount === 0) {
-              canvas.requestRenderAll();
-              return;
-            }
-
-            const contentHeight = App.state.baseHeight - cfg.marginTop - cfg.marginBottom;
-            const lineHeight = contentHeight / cfg.rowCount;
-            const startX = cfg.marginLeft,
-              endX = App.state.baseWidth - cfg.marginRight;
-            const gridLines = [];
-
-            const addLine = (y, w, opts = {}) => {
-              gridLines.push(
-                new fabric.Line([startX, y, endX, y], {
-                  stroke: cfg.gridColor,
-                  strokeWidth: w,
-                  selectable: false,
-                  evented: false,
-                  isGrid: true,
-                  excludeFromExport: true,
-                  originX: "center",
-                  originY: "center",
-                  ...opts,
-                })
-              );
-            };
-
-            for (let i = 0; i <= cfg.rowCount; i++) {
-              const y = cfg.marginTop + i * lineHeight;
-              if (i === 0 && cfg.doubleFirst) {
-                addLine(y - 2, 3);
-                addLine(y + 2, 1);
-              } else if (i === cfg.rowCount && cfg.doubleLast) {
-                addLine(y - 2, 1);
-                addLine(y + 2, 3);
+            const dualWrapper = document.getElementById("dualOptionWrapper");
+            const dualInput = document.getElementById("paperDual");
+            if (dualWrapper) {
+              if (App.state.currentPaper.w > App.state.currentPaper.h) {
+                dualWrapper.classList.remove("hidden");
+                dualWrapper.classList.add("flex");
               } else {
-                addLine(y, cfg.strokeWidth, cfg.gridDashed && i > 0 && i < cfg.rowCount ? { strokeDashArray: [cfg.gridDashArray, cfg.gridDashArray] } : {});
+                dualWrapper.classList.add("hidden");
+                dualWrapper.classList.remove("flex");
+                dualInput.checked = false;
               }
             }
 
-            gridLines.forEach((l) => {
-              canvas.add(l);
-              canvas.sendToBack(l);
-            });
+            App.state.baseWidth = App.state.currentPaper.w * CONFIG.MM_TO_PX;
+            App.state.baseHeight = App.state.currentPaper.h * CONFIG.MM_TO_PX;
+            document.getElementById("canvasSizeLabel").innerText = `${type} - ${isLandscape ? "横向" : "纵向"} (${App.state.currentPaper.w} x ${App.state.currentPaper.h} mm)`;
+            App.zoom.apply(App.state.zoom);
+            App.state.hasUnsavedChanges = true;
+            this.drawPaper();
+          },
+
+          drawPaper: function () {
+            const cfg = this.getSettings();
+            const canvas = App.canvas;
+
+            canvas.remove(...canvas.getObjects().filter((o) => o.isGrid));
+            canvas.setBackgroundColor(cfg.paperBgColor, canvas.requestRenderAll.bind(canvas));
+
+            const renderer = this.renderers[cfg.type] || this.renderers.ruled;
+
+            try {
+              if (cfg.dual && App.state.baseWidth > App.state.baseHeight) {
+                const originalBaseWidth = App.state.baseWidth;
+                const halfWidth = originalBaseWidth / 2;
+                const originalAdd = canvas.add.bind(canvas);
+
+                App.state.baseWidth = halfWidth;
+                renderer.call(this.renderers, cfg, canvas);
+
+                canvas.add = function (...objects) {
+                  objects.forEach((obj) => {
+                    if (obj) {
+                      obj.left += halfWidth;
+                      if (obj.type === "line") {
+                        obj.setCoords();
+                      }
+                    }
+                  });
+                  originalAdd(...objects);
+                };
+
+                renderer.call(this.renderers, cfg, canvas);
+
+                canvas.add = originalAdd;
+                App.state.baseWidth = originalBaseWidth;
+
+                const midLine = new fabric.Line([halfWidth, 0, halfWidth, App.state.baseHeight], {
+                  stroke: "#ccc",
+                  strokeWidth: 1,
+                  strokeDashArray: [10, 10],
+                  selectable: false,
+                  evented: false,
+                  isGrid: true,
+                  isCutLine: true,
+                  originX: "center",
+                  originY: "center",
+                });
+                canvas.add(midLine);
+                canvas.sendToBack(midLine);
+              } else {
+                renderer.call(this.renderers, cfg, canvas);
+              }
+            } catch (e) {
+              console.warn("Render Error:", e);
+            }
             canvas.requestRenderAll();
+          },
+
+          drawGrid: function () {
+            this.drawPaper();
           },
 
           clearBackground: function () {
@@ -1036,7 +2379,6 @@
           autoFit: function () {
             const container = document.getElementById("scrollContainer");
             const scale = Math.min(1.2, Math.min((container.clientWidth - 60) / App.state.baseWidth, (container.clientHeight - 60) / App.state.baseHeight));
-
             this.apply(scale);
             setTimeout(() => {
               container.scrollLeft = (App.state.baseWidth * scale - container.clientWidth) / 2 + 30;
@@ -1049,7 +2391,6 @@
             const w = Math.round(App.state.baseWidth * scale);
             const h = Math.round(App.state.baseHeight * scale);
             App.canvas.setDimensions({ width: w, height: h }).setZoom(scale);
-
             const vp = document.getElementById("zoomViewport");
             if (vp) {
               vp.style.width = w + "px";
@@ -1060,7 +2401,7 @@
           },
         },
 
-        // --- 事件处理 ---
+        // --- 事件处理模块 ---
         events: {
           initCanvasEvents: function () {
             const container = document.getElementById("scrollContainer");
@@ -1071,54 +2412,111 @@
             let dragOrigin = null,
               isDragThresholdPassed = false;
 
-            // 1. 拖拽与平移
-            App.canvas.on("mouse:down", (opt) => {
-              const target = opt.target;
-              if (target && !opt.e.altKey && !target.isGrid) {
-                dragOrigin = { left: target.left, top: target.top };
-                isDragThresholdPassed = false;
-              } else {
-                dragOrigin = null;
-              }
+            const updateSelectionQueue = (e) => {
+              const { selected, deselected } = e;
+              if (selected) selected.forEach((o) => !App.state.selectionQueue.includes(o) && App.state.selectionQueue.push(o));
+              if (deselected)
+                deselected.forEach((o) => {
+                  const idx = App.state.selectionQueue.indexOf(o);
+                  if (idx > -1) App.state.selectionQueue.splice(idx, 1);
+                });
+              App.ui.updateInspector();
+            };
 
-              if (!target || target.isGrid) {
-                if (opt.e.altKey) {
+            const handleLiveTransform = (e) => {
+              const t = e.target;
+              if (e.transform?.action === "scale" && t.isTable) t.__tableScaling = true;
+              // 文本缩放同步字号
+              if (["i-text", "textbox", "text"].includes(t.type) && e.transform?.action === "scale") {
+                if (Math.abs(t.scaleX - t.scaleY) < 0.01 && Math.abs(t.scaleX - 1) > 0.001) {
+                  const newSize = t.fontSize * t.scaleX;
+                  t.set({ fontSize: newSize, scaleX: 1, scaleY: 1 });
+                  if (t.type === "textbox") t.width *= t.scaleX;
+                  const propSize = document.getElementById("propSize");
+                  if (propSize) propSize.value = Utils.px2pt(newSize);
+                }
+              }
+              App.ui.updateGeo(null, null, t);
+              // 防抖动阈值检查
+              if (dragOrigin && !isDragThresholdPassed && e.transform?.action === "drag") {
+                if (Math.abs(t.left - dragOrigin.left) > 3 || Math.abs(t.top - dragOrigin.top) > 3) isDragThresholdPassed = true;
+                else t.set({ left: dragOrigin.left, top: dragOrigin.top });
+              }
+            };
+
+            const handleObjectModified = (e) => {
+              const t = e.target;
+              if (!t) return;
+              if (t.isTable && t.__tableScaling) {
+                t.__tableScaling = false;
+                App.tableEditor.normalizeScaledTable(t);
+              }
+              // 文本框缩放归一化
+              if (t.type === "textbox") {
+                const finalW = Math.round(t.width * t.scaleX);
+                const finalH = Math.round(t.height * t.scaleY);
+                t.set({ width: Math.max(finalW, 50), scaleX: 1, scaleY: 1 });
+                if (finalH > t.height) t.set("height", finalH);
+                t.__manualHeight = finalH;
+                t.setCoords();
+              }
+              App.ui.updateInspector();
+              App.canvas.requestRenderAll();
+            };
+
+            App.canvas.on({
+              "mouse:down": (opt) => {
+                const target = opt.target;
+                const isAlt = opt.e.altKey;
+                if (target && !isAlt && !target.isGrid) {
+                  dragOrigin = { left: target.left, top: target.top };
+                  isDragThresholdPassed = false;
+                } else {
+                  dragOrigin = null;
+                }
+                if (!target || target.isGrid) {
+                  if (isAlt) {
+                    App.state.isPanning = false;
+                    App.canvas.selection = true;
+                    App.canvas.defaultCursor = "default";
+                  } else {
+                    App.state.isPanning = true;
+                    App.canvas.selection = false;
+                    startX = opt.e.clientX;
+                    startY = opt.e.clientY;
+                    scrollLeft = container.scrollLeft;
+                    scrollTop = container.scrollTop;
+                    App.canvas.setCursor("grabbing");
+                  }
+                }
+              },
+              "mouse:up": () => {
+                dragOrigin = null;
+                isDragThresholdPassed = false;
+                if (App.state.isPanning) {
                   App.state.isPanning = false;
                   App.canvas.selection = true;
                   App.canvas.defaultCursor = "default";
-                } else {
-                  App.state.isPanning = true;
-                  App.canvas.selection = false;
-                  startX = opt.e.clientX;
-                  startY = opt.e.clientY;
-                  scrollLeft = container.scrollLeft;
-                  scrollTop = container.scrollTop;
-                  App.canvas.defaultCursor = "grabbing";
-                  App.canvas.setCursor("grabbing");
+                  App.canvas.setCursor("default");
                 }
-              }
+              },
+              "mouse:dblclick": (opt) => {
+                if (opt.target && opt.target.isTable) App.tableEditor.open(opt.target);
+              },
+              "selection:created": updateSelectionQueue,
+              "selection:updated": updateSelectionQueue,
+              "selection:cleared": () => {
+                App.state.selectionQueue = [];
+                App.ui.updateInspector();
+              },
+              "object:moving": handleLiveTransform,
+              "object:scaling": handleLiveTransform,
+              "object:rotating": handleLiveTransform,
+              "object:resizing": handleLiveTransform,
+              "object:modified": handleObjectModified,
             });
 
-            App.canvas.on("object:moving", (opt) => {
-              if (dragOrigin && !isDragThresholdPassed) {
-                if (Math.abs(opt.target.left - dragOrigin.left) < 3 && Math.abs(opt.target.top - dragOrigin.top) < 3) {
-                  opt.target.set({ left: dragOrigin.left, top: dragOrigin.top });
-                } else {
-                  isDragThresholdPassed = true;
-                }
-              }
-            });
-
-            App.canvas.on("mouse:up", () => {
-              dragOrigin = null;
-              isDragThresholdPassed = false;
-              if (App.state.isPanning) {
-                App.state.isPanning = false;
-                App.canvas.selection = true;
-                App.canvas.defaultCursor = "default";
-              }
-            });
-
+            // DOM 事件
             document.addEventListener(
               "mousemove",
               (e) => {
@@ -1126,63 +2524,26 @@
                   e.preventDefault();
                   container.scrollLeft = scrollLeft - (e.clientX - startX);
                   container.scrollTop = scrollTop - (e.clientY - startY);
-                } else if (App.canvas && App.canvas._currentTransform) {
-                  e.preventDefault();
                 }
               },
               { passive: false }
             );
 
-            // 2. 滚轮缩放
             container.addEventListener(
               "wheel",
               (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const rect = container.getBoundingClientRect();
-                App.zoom.change(e.deltaY > 0 ? -0.1 : 0.1, { x: e.clientX - rect.left, y: e.clientY - rect.top });
+                if (e.ctrlKey || e.metaKey || !App.state.isPanning) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const rect = container.getBoundingClientRect();
+                  App.zoom.change(e.deltaY > 0 ? -0.1 : 0.1, { x: e.clientX - rect.left, y: e.clientY - rect.top });
+                }
               },
               { passive: false }
             );
 
-            // 3. 选中与UI同步
-            const updateQueue = (sel, desel) => {
-              if (sel) sel.forEach((o) => !App.state.selectionQueue.includes(o) && App.state.selectionQueue.push(o));
-              if (desel)
-                desel.forEach((o) => {
-                  const idx = App.state.selectionQueue.indexOf(o);
-                  if (idx > -1) App.state.selectionQueue.splice(idx, 1);
-                });
-              App.ui.updateInspector();
-            };
-
-            App.canvas.on({
-              "selection:created": (e) => updateQueue(e.selected, null),
-              "selection:updated": (e) => updateQueue(e.selected, e.deselected),
-              "selection:cleared": () => {
-                App.state.selectionQueue = [];
-                App.ui.updateInspector();
-              },
-              "object:modified": () => App.ui.updateInspector(),
-            });
-
-            // 4. 对象变换处理 (字体大小随缩放调整)
-            const geoUpdate = (e) => {
-              const t = e.target;
-              if (["i-text", "textbox", "text"].includes(t.type) && Math.abs(t.scaleX - t.scaleY) < 0.01 && Math.abs(t.scaleX - 1) > 0.001) {
-                const newSize = t.fontSize * t.scaleX;
-                t.set({ fontSize: newSize, scaleX: 1, scaleY: 1 });
-                if (t.type === "textbox") t.width *= t.scaleX;
-                const propSize = document.getElementById("propSize");
-                if (propSize) propSize.value = Utils.px2pt(newSize);
-              }
-              App.ui.updateGeo(null, null, t);
-            };
-
-            App.canvas.on({ "object:moving": geoUpdate, "object:scaling": geoUpdate, "object:rotating": geoUpdate, "object:resizing": geoUpdate });
-
             container.addEventListener("mousedown", (e) => {
-              if (["scrollContainer", "zoomViewport", "canvasWrapper"].includes(e.target.id)) {
+              if (["scrollContainer", "zoomViewport", "canvasWrapper"].includes(e.target.id) && App.canvas.getActiveObject()) {
                 App.canvas.discardActiveObject();
                 App.canvas.requestRenderAll();
                 App.ui.updateInspector();
@@ -1195,36 +2556,39 @@
             );
           },
         },
-
         // --- 本地字体加载 ---
         loadLocalFonts: async function () {
           if (App.state.localFontsLoaded || !window.queryLocalFonts) return;
           try {
             App.state.localFontsLoaded = true;
-            const fonts = (await window.queryLocalFonts()).sort((a, b) => a.family.localeCompare(b.family));
-            const select = document.getElementById("propFont");
-            const seen = new Set([...select.options].map((o) => o.value));
+            const fonts = await window.queryLocalFonts();
+            App.state.availableFonts = fonts; // 保存供转曲使用
 
-            if (!seen.has("---sep---")) select.add(new Option("--- 本地字体 ---", "---sep---", true, true));
+            const sortedFonts = fonts.sort((a, b) => a.family.localeCompare(b.family));
+            const targetIds = ["propFont", "floatFontFamily"];
 
-            let count = 0;
-            for (const f of fonts) {
-              if (!seen.has(f.family)) {
-                seen.add(f.family);
-                const opt = new Option(f.fullName, f.family);
-                opt.style.fontFamily = f.family;
-                select.add(opt);
-                count++;
+            targetIds.forEach((id) => {
+              const select = document.getElementById(id);
+              if (!select) return;
+              const seen = new Set([...select.options].map((o) => o.value));
+              if (!seen.has("---sep---")) select.add(new Option("--- 本地字体 ---", "---sep---", true, true));
+
+              for (const f of sortedFonts) {
+                if (!seen.has(f.family)) {
+                  seen.add(f.family);
+                  const opt = new Option(f.fullName, f.family);
+                  opt.style.fontFamily = f.family;
+                  select.add(opt);
+                }
               }
-            }
-            if (count) Utils.toast(`已加载 ${count} 款本地字体`);
+            });
           } catch (e) {
             console.warn("Font Access Error", e);
             App.state.localFontsLoaded = false;
           }
         },
 
-        // --- 工具集 ---
+        // --- 画布工具集 ---
         tools: {
           _getCenter: () => ({ left: App.state.baseWidth / 2, top: App.state.baseHeight / 2 }),
 
@@ -1240,7 +2604,7 @@
             this._addToCanvas(
               new fabric.IText("点击编辑文本", {
                 ...this._getCenter(),
-                fontSize: Utils.pt2px(14),
+                fontSize: Utils.pt2px(20),
                 fontFamily: "SimSun",
                 fill: App.paper.getSettings().gridColor,
                 originX: "center",
@@ -1250,18 +2614,35 @@
           },
 
           addParagraph: function () {
-            this._addToCanvas(
-              new fabric.Textbox("在此输入段落文本...\n支持自动换行。", {
-                ...this._getCenter(),
-                width: App.state.baseWidth - Utils.mm2px(50),
-                fontSize: Utils.pt2px(12),
-                fontFamily: "FangSong",
-                fill: "#333",
-                splitByGrapheme: true,
-                originX: "center",
-                originY: "center",
-              })
-            );
+            const textbox = new fabric.Textbox("在此输入段落文本...\n支持自动换行。", {
+              left: 100,
+              top: 100,
+              width: App.state.baseWidth - Utils.mm2px(50),
+              fontSize: Utils.pt2px(20),
+              fontFamily: "FangSong",
+              fill: "#333",
+              splitByGrapheme: true,
+              lockScalingFlip: true,
+              minWidth: 50,
+            });
+
+            // 使用原生缩放并记录手动高度防止回弹
+            const ctrl = textbox.controls;
+            ctrl.ml.actionHandler = ctrl.mr.actionHandler = fabric.controlsUtils.scalingX;
+            ctrl.mt.actionHandler = ctrl.mb.actionHandler = fabric.controlsUtils.scalingY;
+            textbox.__manualHeight = textbox.height;
+
+            textbox.on("editing:exited", function () {
+              if (this.__manualHeight && this.height < this.__manualHeight) {
+                this.set("height", this.__manualHeight);
+                this.setCoords();
+                App.canvas.requestRenderAll();
+              }
+            });
+            textbox.on("changed", function () {
+              if (this.height > this.__manualHeight) this.__manualHeight = this.height;
+            });
+            this._addToCanvas(textbox);
           },
 
           addDate: function () {
@@ -1294,9 +2675,12 @@
 
           addLine: function () {
             const cfg = App.paper.getSettings();
+            const contentWidth = App.state.baseWidth - cfg.marginLeft - cfg.marginRight;
+
             this._addToCanvas(
-              new fabric.Line([0, 0, App.state.baseWidth - cfg.marginLeft - cfg.marginRight, 0], {
-                ...this._getCenter(),
+              new fabric.Line([0, 0, contentWidth, 0], {
+                left: App.state.baseWidth / 2,
+                top: App.state.baseHeight / 2,
                 stroke: cfg.gridColor,
                 strokeWidth: 2,
                 originX: "center",
@@ -1399,6 +2783,7 @@
             if (!act || (act.type !== "rect" && !act.isSmartRect)) return;
 
             let cfg = act.cornerConfig || { tl: 0, tr: 0, bl: 0, br: 0, style: "round" };
+
             if (key === "all") {
               const v = parseInt(value) || 0;
               cfg.tl = cfg.tr = cfg.bl = cfg.br = v;
@@ -1407,16 +2792,44 @@
             } else if (key === "style") cfg.style = value;
             else cfg[key] = parseInt(value) || 0;
 
-            const newObj = new fabric.Path(Utils.generateSmartRectPath(act.getScaledWidth(), act.getScaledHeight(), cfg, cfg.style), {
-              ...act.toObject(["left", "top", "fill", "stroke", "strokeWidth", "opacity", "angle", "originX", "originY"]),
-              scaleX: 1,
-              scaleY: 1,
+            const w = act.getScaledWidth();
+            const h = act.getScaledHeight();
+
+            const pathData = Utils.generateSmartRectPath(w, h, cfg, cfg.style);
+
+            const center = act.getCenterPoint();
+
+            const safeProps = act.toObject(["fill", "stroke", "strokeWidth", "opacity", "angle", "strokeDashArray", "strokeLineCap", "strokeLineJoin", "shadow", "globalCompositeOperation"]);
+
+            delete safeProps.type;
+            delete safeProps.width;
+            delete safeProps.height;
+            delete safeProps.scaleX;
+            delete safeProps.scaleY;
+            delete safeProps.left;
+            delete safeProps.top;
+            delete safeProps.path;
+            delete safeProps.pathOffset;
+
+            const newObj = new fabric.Path(pathData, {
+              ...safeProps,
               isSmartRect: true,
               cornerConfig: cfg,
+              scaleX: 1,
+              scaleY: 1,
+              originX: "center",
+              originY: "center",
+              left: center.x,
+              top: center.y,
             });
 
             const idx = App.canvas.getObjects().indexOf(act);
-            App.canvas.discardActiveObject().remove(act).insertAt(newObj, idx, true).setActiveObject(newObj).requestRenderAll();
+            App.canvas.discardActiveObject();
+            App.canvas.remove(act);
+            App.canvas.insertAt(newObj, idx, true);
+            App.canvas.setActiveObject(newObj);
+            App.canvas.requestRenderAll();
+
             App.ui.updateInspector();
             App.history.saveState();
           },
@@ -1429,10 +2842,596 @@
               const grp = act.toGroup();
               grp.set(prop, !grp[prop]);
               App.canvas.setActiveObject(grp.toActiveSelection());
-            } else {
-              act.set(prop, !act[prop]);
-            }
+            } else act.set(prop, !act[prop]);
             App.canvas.requestRenderAll();
+            App.history.saveState();
+          },
+        },
+
+        // --- 表格编辑器 ---
+        tableEditor: {
+          state: {
+            rows: 3,
+            cols: 3,
+            colWidths: [100, 100, 100],
+            rowHeights: [44, 44, 44],
+            data: [],
+            selected: [],
+            resizing: null,
+            resizeIndex: -1,
+            resizeStartVal: 0,
+            resizeStartSize: 0,
+            isSelecting: false,
+            selectAnchor: null,
+            editingTarget: null,
+          },
+          els: {},
+
+          init: function () {
+            this.cacheDom();
+            this.attachEvents();
+          },
+
+          cacheDom: function () {
+            const get = (id) => document.getElementById(id);
+            this.els = {
+              modal: get("tableModal"),
+              gridBody: get("tableGridBody"),
+              wrapper: get("tableWrapper"),
+              editArea: get("tableEditArea"),
+              floatMenu: get("tableFloatMenu"),
+              insertBtn: get("tableInsertBtn"),
+              cancelBtn: get("tableCancelBtn"),
+              floatFont: get("floatFontFamily"),
+              floatSize: get("floatFontSize"),
+              floatBold: get("floatBoldBtn"),
+              floatBorderW: get("floatBorderWidth"),
+              floatBorderC: get("floatBorderColorInput"),
+              floatBorderInd: get("floatBorderColorInd"),
+              floatBg: get("floatBgInput"),
+              floatBgInd: get("floatBgIndicator"),
+              floatText: get("floatTextInput"),
+              floatTextInd: get("floatTextIndicator"),
+              floatMerge: get("floatMergeBtn"),
+              floatSplit: get("floatSplitBtn"),
+            };
+          },
+
+          attachEvents: function () {
+            const e = this.els;
+            if (!e.modal) return;
+            e.insertBtn?.addEventListener("click", () => this.insertIntoCanvas());
+            e.cancelBtn?.addEventListener("click", () => this.close());
+            e.floatMerge?.addEventListener("click", () => this.mergeSelection());
+            e.floatSplit?.addEventListener("click", () => this.splitSelection());
+            e.floatBold?.addEventListener("click", () => this.toggleStyle("bold"));
+
+            const bindInput = (el, key, indicator) => {
+              el?.addEventListener(el.tagName === "SELECT" ? "change" : "input", () => {
+                const val = el.type === "number" ? parseFloat(el.value) : el.value;
+                this.applyStyle({ [key]: val });
+                if (indicator) indicator.style.backgroundColor = el.value;
+              });
+            };
+            bindInput(e.floatBg, "bg", e.floatBgInd);
+            bindInput(e.floatText, "textColor", e.floatTextInd);
+            bindInput(e.floatBorderC, "borderColor", e.floatBorderInd);
+            bindInput(e.floatBorderW, "borderWidth");
+            bindInput(e.floatSize, "fontSize");
+            bindInput(e.floatFont, "fontFamily");
+
+            if (e.gridBody) {
+              e.gridBody.addEventListener("mousedown", (ev) => this.handleMouseDown(ev));
+              e.gridBody.addEventListener("mousemove", (ev) => this.handleMouseMove(ev));
+              e.gridBody.addEventListener("input", (ev) => this.handleCellInput(ev));
+              e.gridBody.addEventListener("contextmenu", (ev) => ev.preventDefault());
+            }
+            document.addEventListener("mouseup", () => this.handleMouseUp());
+            e.editArea?.addEventListener("mousedown", (ev) => {
+              if (ev.target === e.editArea) this.clearSelection();
+            });
+          },
+
+          createCell: function () {
+            return {
+              text: "",
+              bg: "transparent",
+              textColor: "#0f172a",
+              fontFamily: "SourceHanSerifCN-Bold",
+              fontSize: 14,
+              align: "center",
+              colspan: 1,
+              rowspan: 1,
+              hidden: false,
+              bold: false,
+              italic: false,
+              borderWidth: 0.5,
+              borderColor: "#666666",
+            };
+          },
+
+          open: function (target = null) {
+            this.state.selected = [];
+            this.updateFloatMenu();
+            if (target?.isTable && target.tableData) {
+              this.state.editingTarget = target;
+              const d = target.tableData;
+              this.state.rows = d.rows;
+              this.state.cols = d.cols;
+              this.state.colWidths = d.colWidths || Array(d.cols).fill(d.cellWidth || 100);
+              this.state.rowHeights = d.rowHeights || Array(d.rows).fill(d.cellHeight || 44);
+              this.state.data = this.normalizeCells(d.cells);
+              this.els.insertBtn.innerHTML = '<i class="ph ph-check-circle text-lg"></i> 更新表格';
+            } else {
+              this.state.editingTarget = null;
+              this.resetData(3, 3);
+              this.els.insertBtn.innerHTML = '<i class="ph ph-plus-circle text-lg"></i> 插入表格';
+            }
+            this.renderGrid();
+            this.els.modal.classList.remove("hidden");
+            this.els.modal.classList.add("flex");
+          },
+
+          close: function () {
+            this.els.modal.classList.add("hidden");
+            this.els.modal.classList.remove("flex");
+            this.clearSelection();
+            this.state.editingTarget = null;
+          },
+
+          resetData: function (rows, cols) {
+            this.state.rows = rows;
+            this.state.cols = cols;
+            this.state.colWidths = Array(cols).fill(100);
+            this.state.rowHeights = Array(rows).fill(44);
+            this.state.data = Array(rows)
+              .fill(null)
+              .map(() =>
+                Array(cols)
+                  .fill(null)
+                  .map(() => this.createCell())
+              );
+          },
+
+          addCR: function (type, pos) {
+            const s = this.state;
+            if (type === "row") {
+              const newRow = Array(s.cols)
+                .fill(null)
+                .map(() => this.createCell());
+              if (pos === "top") {
+                s.data.unshift(newRow);
+                s.rowHeights.unshift(44);
+              } else {
+                s.data.push(newRow);
+                s.rowHeights.push(44);
+              }
+              s.rows++;
+            } else {
+              s.data.forEach((row) => {
+                const cell = this.createCell();
+                if (pos === "left") row.unshift(cell);
+                else row.push(cell);
+              });
+              if (pos === "left") s.colWidths.unshift(100);
+              else s.colWidths.push(100);
+              s.cols++;
+            }
+            this.renderGrid();
+          },
+
+          deleteCR: function (type) {
+            const sels = this.getSelectedCells();
+            if (!sels.length) return Utils.toast("请先选择单元格", "error");
+            const indices = new Set();
+            sels.forEach((s) => indices.add(type === "row" ? s.row : s.col));
+            const sortedIndices = Array.from(indices).sort((a, b) => b - a);
+
+            if (type === "row" && this.state.rows - sortedIndices.length < 1) return Utils.toast("至少保留一行", "error");
+            if (type === "col" && this.state.cols - sortedIndices.length < 1) return Utils.toast("至少保留一列", "error");
+
+            if (type === "row") {
+              sortedIndices.forEach((idx) => {
+                this.state.data.splice(idx, 1);
+                this.state.rowHeights.splice(idx, 1);
+              });
+              this.state.rows -= sortedIndices.length;
+            } else {
+              sortedIndices.forEach((idx) => {
+                this.state.colWidths.splice(idx, 1);
+                this.state.data.forEach((row) => row.splice(idx, 1));
+              });
+              this.state.cols -= sortedIndices.length;
+            }
+            this.clearSelection();
+            this.renderGrid();
+            Utils.toast(`已删除 ${sortedIndices.length} ${type === "row" ? "行" : "列"}`);
+          },
+
+          renderGrid: function () {
+            const body = this.els.gridBody;
+            if (!body) return;
+            body.innerHTML = "";
+            this.state.data.forEach((row, r) => {
+              const tr = document.createElement("tr");
+              row.forEach((cell, c) => {
+                if (cell.hidden) return;
+                const td = document.createElement("td");
+                let w = 0,
+                  h = 0;
+                for (let i = 0; i < cell.colspan; i++) w += this.state.colWidths[c + i];
+                for (let i = 0; i < cell.rowspan; i++) h += this.state.rowHeights[r + i];
+                td.dataset.row = r;
+                td.dataset.col = c;
+                td.rowSpan = cell.rowspan;
+                td.colSpan = cell.colspan;
+                td.innerText = cell.text || "";
+                td.contentEditable = true;
+                Object.assign(td.style, {
+                  backgroundColor: cell.bg,
+                  color: cell.textColor,
+                  textAlign: cell.align,
+                  fontFamily: cell.fontFamily,
+                  fontSize: cell.fontSize + "px",
+                  fontWeight: cell.bold ? "bold" : "normal",
+                  border: `${cell.borderWidth ?? 1}px solid ${cell.borderColor ?? "#cbd5e1"}`,
+                  width: w + "px",
+                  height: h + "px",
+                  minWidth: "20px",
+                });
+                tr.appendChild(td);
+              });
+              body.appendChild(tr);
+            });
+            this.paintSelection();
+          },
+
+          handleMouseMove: function (e) {
+            const td = e.target.closest("td");
+            if (!td && !this.state.resizing) return;
+            if (this.state.resizing) {
+              const delta = (this.state.resizing === "col" ? e.clientX : e.clientY) - this.state.resizeStartVal;
+              const newSize = Math.max(20, this.state.resizeStartSize + delta);
+              if (this.state.resizing === "col") this.state.colWidths[this.state.resizeIndex] = newSize;
+              else this.state.rowHeights[this.state.resizeIndex] = newSize;
+              requestAnimationFrame(() => this.renderGrid());
+              return;
+            }
+            if (this.state.isSelecting && td) {
+              this.selectRange(this.state.selectAnchor, { r: +td.dataset.row, c: +td.dataset.col });
+              return;
+            }
+            if (!td) return;
+            const rect = td.getBoundingClientRect();
+            const onRight = Math.abs(e.clientX - rect.left - rect.width) < 5;
+            const onBottom = Math.abs(e.clientY - rect.top - rect.height) < 5;
+            if (onRight) {
+              td.style.cursor = "col-resize";
+              td.dataset.edge = "right";
+            } else if (onBottom) {
+              td.style.cursor = "row-resize";
+              td.dataset.edge = "bottom";
+            } else {
+              td.style.cursor = "text";
+              delete td.dataset.edge;
+            }
+          },
+
+          handleMouseDown: function (e) {
+            const td = e.target.closest("td");
+            if (!td || (e.button !== 0 && e.button !== 2)) return;
+            const edge = td.dataset.edge;
+            if (edge && e.button === 0) {
+              e.preventDefault();
+              this.state.resizing = edge === "right" ? "col" : "row";
+              this.state.resizeStartVal = edge === "right" ? e.clientX : e.clientY;
+              const cIdx = parseInt(td.dataset.col) + (edge === "right" ? parseInt(td.colSpan) - 1 : 0);
+              const rIdx = parseInt(td.dataset.row) + (edge === "bottom" ? parseInt(td.rowSpan) - 1 : 0);
+              this.state.resizeIndex = edge === "right" ? cIdx : rIdx;
+              this.state.resizeStartSize = edge === "right" ? this.state.colWidths[cIdx] : this.state.rowHeights[rIdx];
+              document.body.style.cursor = edge === "right" ? "col-resize" : "row-resize";
+            } else {
+              this.state.isSelecting = true;
+              this.state.selectAnchor = { r: +td.dataset.row, c: +td.dataset.col };
+              this.selectRange(this.state.selectAnchor, this.state.selectAnchor);
+            }
+          },
+
+          handleMouseUp: function () {
+            if (this.state.resizing) {
+              this.state.resizing = null;
+              document.body.style.cursor = "default";
+              this.renderGrid();
+            }
+            if (this.state.isSelecting) {
+              this.state.isSelecting = false;
+              this.updateFloatMenu();
+            }
+          },
+
+          selectRange: function (start, end) {
+            const minR = Math.min(start.r, end.r),
+              maxR = Math.max(start.r, end.r);
+            const minC = Math.min(start.c, end.c),
+              maxC = Math.max(start.c, end.c);
+            this.state.selected = [];
+            for (let r = minR; r <= maxR; r++) for (let c = minC; c <= maxC; c++) this.state.selected.push({ row: r, col: c });
+            this.paintSelection();
+          },
+
+          paintSelection: function () {
+            const selMap = new Set(this.state.selected.map((s) => `${s.row},${s.col}`));
+            this.els.gridBody.querySelectorAll("td").forEach((td) => td.classList.toggle("selected", selMap.has(`${td.dataset.row},${td.dataset.col}`)));
+          },
+
+          clearSelection: function () {
+            this.state.selected = [];
+            this.paintSelection();
+            this.updateFloatMenu();
+          },
+
+          updateFloatMenu: function () {
+            const menu = this.els.floatMenu;
+            if (this.state.selected.length === 0) {
+              menu.classList.add("hidden");
+              return;
+            }
+            const selectedTds = this.els.gridBody.querySelectorAll("td.selected");
+            if (selectedTds.length === 0) return;
+
+            // 计算菜单位置
+            let minTop = Infinity,
+              minLeft = Infinity,
+              maxRight = -Infinity;
+            selectedTds.forEach((td) => {
+              const r = td.getBoundingClientRect();
+              if (r.top < minTop) minTop = r.top;
+              if (r.left < minLeft) minLeft = r.left;
+              if (r.right > maxRight) maxRight = r.right;
+            });
+            const containerRect = this.els.editArea.getBoundingClientRect();
+            menu.style.top = minTop - containerRect.top + this.els.editArea.scrollTop + "px";
+            menu.style.left = minLeft + (maxRight - minLeft) / 2 - containerRect.left + this.els.editArea.scrollLeft + "px";
+            menu.classList.remove("hidden");
+
+            // 同步首个单元格属性到 UI
+            const firstCell = this.getSelectedCells()[0]?.cell;
+            if (firstCell) {
+              const sync = (el, val, ind) => {
+                if (el) el.value = val === "transparent" || val === "rgba(0, 0, 0, 0)" ? "#ffffff" : val;
+                if (ind) {
+                  ind.style.backgroundColor = val;
+                  ind.style.boxShadow = !val || val === "transparent" || val === "#ffffff" ? "inset 0 0 0 1px #cbd5e1" : "none";
+                }
+              };
+              sync(this.els.floatBg, firstCell.bg, this.els.floatBgInd);
+              sync(this.els.floatText, firstCell.textColor, this.els.floatTextInd);
+              sync(this.els.floatBorderC, firstCell.borderColor, this.els.floatBorderInd);
+              if (this.els.floatBorderW) this.els.floatBorderW.value = firstCell.borderWidth;
+              if (this.els.floatSize) this.els.floatSize.value = firstCell.fontSize;
+              if (this.els.floatFont) this.els.floatFont.value = firstCell.fontFamily;
+            }
+          },
+
+          handleCellInput: function (e) {
+            const td = e.target;
+            const cell = this.state.data[td.dataset.row]?.[td.dataset.col];
+            if (cell) cell.text = td.innerText;
+          },
+          getSelectedCells: function () {
+            return this.state.selected.map((p) => ({ ...p, cell: this.state.data[p.row]?.[p.col] })).filter((i) => i.cell && !i.cell.hidden);
+          },
+          applyStyle: function (updates) {
+            this.getSelectedCells().forEach(({ cell }) => Object.assign(cell, updates));
+            this.renderGrid();
+          },
+          toggleStyle: function (key) {
+            const cells = this.getSelectedCells();
+            if (!cells.length) return;
+            const val = !cells[0].cell[key];
+            cells.forEach(({ cell }) => (cell[key] = val));
+            this.renderGrid();
+          },
+
+          mergeSelection: function () {
+            const cells = this.getSelectedCells();
+            if (cells.length < 2) return Utils.toast("请选择至少两个单元格", "error");
+            const rows = cells.map((c) => c.row),
+              cols = cells.map((c) => c.col);
+            const minRow = Math.min(...rows),
+              maxRow = Math.max(...rows),
+              minCol = Math.min(...cols),
+              maxCol = Math.max(...cols);
+            if ((maxRow - minRow + 1) * (maxCol - minCol + 1) !== cells.length) return Utils.toast("请选择矩形区域", "error");
+            if (cells.some(({ cell }) => cell.rowspan > 1 || cell.colspan > 1)) return Utils.toast("区域含已合并单元格", "error");
+
+            const base = this.state.data[minRow][minCol];
+            let mergedText = base.text;
+            cells.forEach((c, idx) => {
+              if (idx > 0 && c.cell.text.trim()) mergedText += " " + c.cell.text;
+            });
+            base.text = mergedText;
+            base.rowspan = maxRow - minRow + 1;
+            base.colspan = maxCol - minCol + 1;
+
+            for (let r = minRow; r <= maxRow; r++) {
+              for (let c = minCol; c <= maxCol; c++) {
+                if (r === minRow && c === minCol) continue;
+                this.state.data[r][c].hidden = true;
+                this.state.data[r][c].text = "";
+              }
+            }
+            this.state.selected = [{ row: minRow, col: minCol }];
+            this.renderGrid();
+            this.updateFloatMenu();
+          },
+
+          splitSelection: function () {
+            const target = this.getSelectedCells()[0];
+            if (!target || (target.cell.rowspan === 1 && target.cell.colspan === 1)) return;
+            const { row, col } = target;
+            const cell = target.cell;
+            const maxRow = row + cell.rowspan - 1;
+            const maxCol = col + cell.colspan - 1;
+            cell.rowspan = 1;
+            cell.colspan = 1;
+            for (let r = row; r <= maxRow; r++) for (let c = col; c <= maxCol; c++) if (r !== row || c !== col) this.state.data[r][c] = this.createCell();
+            this.state.selected = [{ row, col }];
+            this.renderGrid();
+            this.updateFloatMenu();
+          },
+
+          normalizeCells: function (cells) {
+            return cells ? cells.map((row) => row.map((c) => ({ ...this.createCell(), ...c }))) : [];
+          },
+
+          insertIntoCanvas: function () {
+            if (!App.canvas) return;
+            const config = { rows: this.state.rows, cols: this.state.cols, colWidths: [...this.state.colWidths], rowHeights: [...this.state.rowHeights], cells: JSON.parse(JSON.stringify(this.state.data)) };
+            if (this.state.editingTarget) {
+              this._replaceTableOnCanvas(this.state.editingTarget, config);
+              Utils.toast("表格已更新");
+            } else {
+              App.tools._addToCanvas(this.buildFabricTable(config));
+              Utils.toast("表格已插入");
+            }
+            this.close();
+          },
+
+          buildFabricTable: function (config) {
+            const objs = [];
+            const colAcc = [0];
+            config.colWidths.forEach((w, i) => colAcc.push(colAcc[i] + w));
+            const rowAcc = [0];
+            config.rowHeights.forEach((h, i) => rowAcc.push(rowAcc[i] + h));
+            const totalW = colAcc[colAcc.length - 1],
+              totalH = rowAcc[rowAcc.length - 1];
+            const offsetX = totalW / 2,
+              offsetY = totalH / 2;
+
+            for (let r = 0; r < config.rows; r++) {
+              for (let c = 0; c < config.cols; c++) {
+                const cell = config.cells[r][c];
+                if (!cell || cell.hidden) continue;
+                const cellW = colAcc[c + cell.colspan] - colAcc[c];
+                const cellH = rowAcc[r + cell.rowspan] - rowAcc[r];
+                const left = colAcc[c] + cellW / 2 - offsetX;
+                const top = rowAcc[r] + cellH / 2 - offsetY;
+
+                objs.push(
+                  new fabric.Rect({
+                    left,
+                    top,
+                    width: cellW,
+                    height: cellH,
+                    fill: cell.bg || "#ffffff",
+                    stroke: cell.borderColor || "#000",
+                    strokeWidth: cell.borderWidth ?? 1,
+                    originX: "center",
+                    originY: "center",
+                  })
+                );
+
+                if (cell.text && cell.text.trim()) {
+                  objs.push(
+                    new fabric.Textbox(cell.text, {
+                      left,
+                      top,
+                      width: cellW - 8,
+                      fontSize: cell.fontSize || 14,
+                      fontFamily: cell.fontFamily || "SourceHanSerifCN-Bold",
+                      fontWeight: cell.bold ? "bold" : "normal",
+                      fontStyle: cell.italic ? "italic" : "normal",
+                      fill: cell.textColor || "#000",
+                      textAlign: cell.align || "center",
+                      originX: "center",
+                      originY: "center",
+                      splitByGrapheme: true,
+                      editable: false,
+                    })
+                  );
+                }
+              }
+            }
+            objs.push(new fabric.Rect({ left: 0, top: 0, width: totalW, height: totalH, fill: "transparent", strokeWidth: 0, originX: "center", originY: "center", excludeFromExport: true }));
+
+            return new fabric.Group(objs, {
+              left: App.state.baseWidth / 2,
+              top: App.state.baseHeight / 2,
+              originX: "center",
+              originY: "center",
+              isTable: true,
+              tableData: config,
+              lockScalingX: false,
+              lockScalingY: false,
+              hasControls: true,
+              hasBorders: true,
+              lockUniScaling: false,
+            });
+          },
+
+          _replaceTableOnCanvas: function (target, data) {
+            const center = target.getCenterPoint();
+            const preserved = { angle: target.angle, scaleX: target.scaleX, scaleY: target.scaleY, opacity: target.opacity };
+            const newGroup = this.buildFabricTable(data);
+            newGroup.set({ left: center.x, top: center.y, ...preserved });
+            const idx = App.canvas.getObjects().indexOf(target);
+            App.canvas.remove(target);
+            App.canvas.insertAt(newGroup, idx >= 0 ? idx : undefined, true);
+            App.canvas.setActiveObject(newGroup);
+            App.canvas.requestRenderAll();
+            App.ui.updateLayerList();
+            App.history.saveState();
+            this.state.editingTarget = newGroup;
+          },
+
+          normalizeScaledTable: function (tableObj) {
+            if (!tableObj?.isTable || !tableObj.tableData) return;
+            const sX = tableObj.scaleX || 1,
+              sY = tableObj.scaleY || 1;
+            if (Math.abs(sX - 1) < 0.01 && Math.abs(sY - 1) < 0.01) return;
+
+            const d = JSON.parse(JSON.stringify(tableObj.tableData));
+            if (!d.colWidths) d.colWidths = Array(d.cols).fill(d.cellWidth || 100);
+            if (!d.rowHeights) d.rowHeights = Array(d.rows).fill(d.cellHeight || 44);
+
+            d.colWidths = d.colWidths.map((w) => w * sX);
+            d.rowHeights = d.rowHeights.map((h) => h * sY);
+
+            if (d.cells)
+              d.cells.forEach((row) =>
+                row.forEach((cell) => {
+                  if (cell && cell.fontSize) cell.fontSize = Math.max(9, Math.round(cell.fontSize * sX));
+                })
+              );
+
+            tableObj.scaleX = 1;
+            tableObj.scaleY = 1;
+            this._replaceTableOnCanvas(tableObj, d);
+          },
+          updateActiveTableStyle: function (styleUpdates) {
+            const act = App.canvas.getActiveObject();
+            if (!act || !act.isTable || !act.tableData) return;
+
+            act.tableData.cells.forEach((row) => {
+              row.forEach((cell) => {
+                Object.assign(cell, styleUpdates);
+              });
+            });
+
+            const transform = act.toObject(["left", "top", "scaleX", "scaleY", "angle", "opacity", "originX", "originY"]);
+
+            // 生成新组
+            const newGroup = this.buildFabricTable(act.tableData);
+            newGroup.set(transform);
+
+            const idx = App.canvas.getObjects().indexOf(act);
+            App.canvas.discardActiveObject();
+            App.canvas.remove(act);
+            App.canvas.insertAt(newGroup, idx, true);
+            App.canvas.setActiveObject(newGroup);
+            App.canvas.requestRenderAll();
+
             App.history.saveState();
           },
         },
@@ -1442,7 +3441,6 @@
           updateGeo: function (key, val, targetObj = null) {
             const act = targetObj || App.canvas.getActiveObject();
             if (!act) return;
-
             if (val === undefined || val === null) {
               const p = act.getPointByOrigin("left", "top");
               document.getElementById("propX").value = Utils.px2mm(p.x).toFixed(1);
@@ -1453,20 +3451,20 @@
             } else {
               const numVal = parseFloat(val);
               if (isNaN(numVal)) return;
-
-              if (key === "angle") {
-                act.set("angle", numVal);
-              } else {
+              if (key === "angle") act.set("angle", numVal);
+              else {
                 const pxVal = Utils.mm2px(numVal);
                 if (key === "left" || key === "top") {
-                  let cx = parseFloat(document.getElementById("propX").value);
-                  let cy = parseFloat(document.getElementById("propY").value);
+                  let cx = parseFloat(document.getElementById("propX").value),
+                    cy = parseFloat(document.getElementById("propY").value);
                   act.setPositionByOrigin(new fabric.Point(Utils.mm2px(key === "left" ? numVal : cx), Utils.mm2px(key === "top" ? numVal : cy)), "left", "top");
-                } else if (key === "width") {
-                  act.type === "textbox" ? act.set("width", pxVal) : act.set("scaleX", pxVal / act.width);
-                } else if (key === "height") {
-                  act.set("scaleY", pxVal / act.height);
-                }
+                } else if (key === "width") act.type === "textbox" ? act.set("width", pxVal) : act.set("scaleX", pxVal / act.width);
+                else if (key === "height") act.set("scaleY", pxVal / act.height);
+              }
+              if (act.isTable && (key === "width" || key === "height")) {
+                act.setCoords();
+                App.tableEditor.normalizeScaledTable(act);
+                return;
               }
               act.setCoords();
               App.canvas.requestRenderAll();
@@ -1477,6 +3475,27 @@
           setProp: function (key, val) {
             const act = App.canvas.getActiveObject();
             if (act) {
+              if (act.isTable) {
+                const map = {};
+                if (key === "fontFamily") map.fontFamily = val;
+                if (key === "fontSize") map.fontSize = val;
+                if (key === "fill") map.textColor = val;
+                if (key === "textAlign") map.align = val;
+                if (key === "stroke") map.borderColor = val;
+                if (key === "strokeWidth") map.borderWidth = parseFloat(val);
+
+                if (Object.keys(map).length > 0) {
+                  App.tableEditor.updateActiveTableStyle(map);
+                }
+                return;
+              }
+
+              if (key === "strokeWidth" && val > 0 && (!act.stroke || act.stroke === "transparent")) {
+                act.set("stroke", "#000000");
+                const colorPicker = document.getElementById("shapeStroke") || document.getElementById("lineColor");
+                if (colorPicker) colorPicker.value = "#000000";
+              }
+
               act.type === "activeSelection" ? act.forEachObject((o) => o.set(key, val)) : act.set(key, val);
               App.canvas.requestRenderAll();
               App.history.saveState();
@@ -1495,6 +3514,19 @@
           toggleStyle: function (style) {
             const act = App.canvas.getActiveObject();
             if (!act) return;
+            if (act.isTable) {
+              const cell = act.tableData.cells[0][0];
+              let update = {};
+              if (style === "bold") update.bold = !cell.bold;
+              if (style === "italic") update.italic = !cell.italic;
+
+              if (Object.keys(update).length > 0) {
+                App.tableEditor.updateActiveTableStyle(update);
+                document.getElementById("btnBold").classList.toggle("active", update.bold !== undefined ? update.bold : cell.bold);
+                document.getElementById("btnItalic").classList.toggle("active", update.italic !== undefined ? update.italic : cell.italic);
+              }
+              return;
+            }
             if (style === "bold") act.set("fontWeight", act.fontWeight === "bold" ? "normal" : "bold");
             else if (style === "italic") act.set("fontStyle", act.fontStyle === "italic" ? "normal" : "italic");
             else if (style === "underline") act.set("underline", !act.underline);
@@ -1502,30 +3534,110 @@
             this.updateInspector();
             App.history.saveState();
           },
+          updateShapeDash: function () {
+            const act = App.canvas.getActiveObject();
+            if (!act) return;
+            const isChecked = document.getElementById("shapeDashCheck").checked;
+            const v = parseInt(document.getElementById("shapeDashVal").value) || 5;
+            act.set("strokeDashArray", isChecked ? [v, v] : null);
+            App.canvas.requestRenderAll();
+            App.history.saveState();
+          },
+          toggleShapeFill: function () {
+            const act = App.canvas.getActiveObject();
+            if (!act) return;
+            const noFill = document.getElementById("shapeNoFill").checked;
+            const wrapper = document.getElementById("shapeFillWrapper");
+            if (act.isTable) {
+              if (noFill) {
+                App.tableEditor.updateActiveTableStyle({ bg: "transparent" });
+                wrapper.classList.add("opacity-50", "pointer-events-none");
+              } else {
+                const color = document.getElementById("shapeFill").value || "#ffffff";
+                App.tableEditor.updateActiveTableStyle({ bg: color });
+                wrapper.classList.remove("opacity-50", "pointer-events-none");
+              }
+              return;
+            }
+            if (noFill) {
+              if (act.fill !== "transparent") act._lastColor = act.fill;
+              act.set("fill", "transparent");
+              wrapper.classList.add("opacity-50", "pointer-events-none");
+            } else {
+              const color = act._lastColor || document.getElementById("shapeFill").value || "#000000";
+              act.set("fill", color);
+              wrapper.classList.remove("opacity-50", "pointer-events-none");
+              document.getElementById("shapeFill").value = color;
+            }
+            App.canvas.requestRenderAll();
+            App.history.saveState();
+          },
 
+          setShapeFill: function (val) {
+            const act = App.canvas.getActiveObject();
+            if (!act) return;
+            if (act.isTable) {
+              App.tableEditor.updateActiveTableStyle({ bg: val });
+              document.getElementById("shapeNoFill").checked = false;
+              document.getElementById("shapeFillWrapper").classList.remove("opacity-50", "pointer-events-none");
+              return;
+            }
+
+            act.set("fill", val);
+            act._lastColor = val;
+
+            document.getElementById("shapeNoFill").checked = false;
+            document.getElementById("shapeFillWrapper").classList.remove("opacity-50", "pointer-events-none");
+
+            App.canvas.requestRenderAll();
+            App.history.saveState();
+          },
           updateInspector: function () {
             const act = App.canvas.getActiveObject();
-            const ids = ["textProps", "imgProps", "lineProps", "shapeProps", "alignTools", "rectCornerControl", "selectionControls"];
-            const els = {};
-            ids.forEach((id) => {
-              els[id] = document.getElementById(id);
-              els[id]?.classList.add("hidden");
-            });
+            const ids = ["textProps", "imgProps", "lineProps", "shapeProps", "tableProps", "alignTools", "rectCornerControl", "selectionControls"];
+            ids.forEach((id) => document.getElementById(id)?.classList.add("hidden"));
             document.getElementById("noSelection").classList.toggle("hidden", !!act);
 
             if (!act) {
               this.updateLayerList();
               return;
             }
-
-            els.selectionControls.classList.remove("hidden");
+            document.getElementById("selectionControls").classList.remove("hidden");
             this.updateGeo(null, null, act);
             document.getElementById("propOpacity").value = act.opacity || 1;
             document.getElementById("opacityVal").innerText = Math.round((act.opacity || 1) * 100) + "%";
 
-            if (act.type === "activeSelection") els.alignTools.classList.remove("hidden");
-            else if (["i-text", "textbox", "text"].includes(act.type)) {
-              els.textProps.classList.remove("hidden");
+            if (act.type === "activeSelection") document.getElementById("alignTools").classList.remove("hidden");
+            else if (act.isTable && act.tableData) {
+              document.getElementById("tableProps").classList.remove("hidden");
+              document.getElementById("textProps").classList.remove("hidden"); // 显示文本设置
+              document.getElementById("shapeProps").classList.remove("hidden"); // 显示边框设置
+              document.getElementById("rectCornerControl").classList.add("hidden"); // 表格不需要圆角控制
+
+              // 取第一个单元格的数据来回显
+              const cell = act.tableData.cells[0]?.[0] || App.tableEditor.createCell();
+
+              document.getElementById("propFont").value = cell.fontFamily;
+              document.getElementById("propSize").value = Utils.px2pt(cell.fontSize);
+              document.getElementById("propColor").value = cell.textColor;
+              document.getElementById("propLineHeight").parentElement.classList.add("hidden");
+              document.getElementById("propCharSpacing").parentElement.classList.add("hidden");
+
+              document.getElementById("btnBold").classList.toggle("active", cell.bold);
+              document.getElementById("btnItalic").classList.toggle("active", cell.italic);
+              document.getElementById("btnUnderline").classList.remove("active");
+
+              const fillPicker = document.getElementById("shapeFill");
+              const fillWrapper = document.getElementById("shapeFillWrapper");
+              fillPicker.value = cell.bg;
+              fillWrapper.classList.remove("opacity-50", "pointer-events-none");
+              document.getElementById("shapeNoFill").checked = cell.bg === "transparent";
+
+              document.getElementById("shapeStroke").value = cell.borderColor;
+              document.getElementById("shapeStrokeWidth").value = cell.borderWidth;
+              document.getElementById("shapeDashCheck").parentElement.parentElement.classList.add("hidden");
+            } else if (["i-text", "textbox", "text"].includes(act.type)) {
+              document.getElementById("textProps").classList.remove("hidden");
               document.getElementById("propFont").value = act.fontFamily;
               document.getElementById("propSize").value = Utils.px2pt(act.fontSize);
               document.getElementById("propColor").value = act.fill;
@@ -1534,23 +3646,37 @@
               document.getElementById("btnBold").classList.toggle("active", act.fontWeight === "bold");
               document.getElementById("btnItalic").classList.toggle("active", act.fontStyle === "italic");
               document.getElementById("btnUnderline").classList.toggle("active", !!act.underline);
-            } else if (act.type === "image") {
-              els.imgProps.classList.remove("hidden");
-            } else if (act.type === "line") {
-              els.lineProps.classList.remove("hidden");
+            } else if (act.type === "image") document.getElementById("imgProps").classList.remove("hidden");
+            else if (act.type === "line") {
+              document.getElementById("lineProps").classList.remove("hidden");
               document.getElementById("lineColor").value = act.stroke;
               document.getElementById("lineStrokeWidth").value = act.strokeWidth;
               const dash = act.strokeDashArray;
               document.getElementById("lineDashCheck").checked = !!(dash && dash.length);
               document.getElementById("lineDashVal").value = (dash && dash[0]) || 5;
-            } else if (["rect", "circle", "triangle", "polygon", "path"].includes(act.type)) {
-              els.shapeProps.classList.remove("hidden");
-              document.getElementById("shapeFill").value = act.fill === "transparent" ? "#ffffff" : act.fill;
+            } else if (act.isTable) document.getElementById("tableProps").classList.remove("hidden");
+            else if (["rect", "circle", "triangle", "polygon", "path"].includes(act.type)) {
+              document.getElementById("shapeProps").classList.remove("hidden");
+              const isTransparent = act.fill === "transparent" || !act.fill;
+              const noFillCheckbox = document.getElementById("shapeNoFill");
+              const fillWrapper = document.getElementById("shapeFillWrapper");
+              const fillPicker = document.getElementById("shapeFill");
+              noFillCheckbox.checked = isTransparent;
+
+              if (isTransparent) {
+                fillWrapper.classList.add("opacity-50", "pointer-events-none");
+                fillPicker.value = act._lastColor || "#000000";
+              } else {
+                fillWrapper.classList.remove("opacity-50", "pointer-events-none");
+                fillPicker.value = act.fill;
+              }
               document.getElementById("shapeStroke").value = act.stroke || "#000000";
               document.getElementById("shapeStrokeWidth").value = act.strokeWidth || 0;
-
+              const dash = act.strokeDashArray;
+              document.getElementById("shapeDashCheck").checked = !!(dash && dash.length);
+              document.getElementById("shapeDashVal").value = (dash && dash[0]) || 5;
               if (act.type === "rect" || act.isSmartRect) {
-                els.rectCornerControl.classList.remove("hidden");
+                document.getElementById("rectCornerControl").classList.remove("hidden");
                 const conf = act.cornerConfig || { tl: act.rx || 0, tr: act.rx || 0, bl: act.rx || 0, br: act.rx || 0, style: "round" };
                 document.getElementById("cornerStyle").value = conf.style;
                 ["tl", "tr", "bl", "br"].forEach((k) => (document.getElementById("corner" + k.toUpperCase()).value = conf[k]));
@@ -1594,8 +3720,12 @@
             };
 
             objs.forEach((o) => {
-              let icon = "ph-square";
-              if (o.type.includes("text")) icon = "ph-text-t";
+              let icon = "ph-square",
+                label = o.text ? o.text.substring(0, 10) : o.type;
+              if (o.isTable) {
+                icon = "ph-table";
+                label = `表格 ${o.tableData?.rows || 0}x${o.tableData?.cols || 0}`;
+              } else if (o.type.includes("text")) icon = "ph-text-t";
               else if (o.type === "image") icon = "ph-image";
               else if (o.type === "line") icon = "ph-line-segment";
               else if (["rect", "circle", "triangle"].includes(o.type)) icon = "ph-shapes";
@@ -1603,7 +3733,7 @@
               list.appendChild(
                 createRow(
                   icon,
-                  o.text ? o.text.substring(0, 10) : o.type === "image" ? "图片" : o.type,
+                  label,
                   activeObjs.includes(o),
                   false,
                   (e) => {
@@ -1661,27 +3791,14 @@
           showModal: (id) => document.getElementById(id).classList.remove("hidden"),
           hideModal: (id) => document.getElementById(id).classList.add("hidden"),
 
-          alignObject: function (mode) {
-            const act = App.canvas.getActiveObject();
-            if (!act) return;
-            const cfg = App.paper.getSettings();
-            const contentW = App.state.baseWidth - cfg.marginLeft - cfg.marginRight;
-            if (mode === "centerH") act.set({ left: cfg.marginLeft + contentW / 2, originX: "center" });
-            else if (mode === "left") act.set({ left: cfg.marginLeft, originX: "left" });
-            else if (mode === "right") act.set({ left: App.state.baseWidth - cfg.marginRight, originX: "right" });
-            act.setCoords();
-            App.canvas.requestRenderAll();
-            this.updateGeo(null, null, act);
-            App.history.saveState();
-          },
-
           align: function (mode) {
-            if (App.state.selectionQueue.length < 2) return;
-            const queue = [...App.state.selectionQueue],
-              anchor = queue[0],
-              aRect = anchor.getBoundingRect(true);
+            const activeObj = App.canvas.getActiveObject();
+            const queue = App.state.selectionQueue;
+            if (!activeObj || activeObj.type !== "activeSelection" || queue.length < 2) return Utils.toast("请按住 Shift 依次点击选择对象进行对齐", "info");
+
+            const anchor = queue[0];
             App.canvas.discardActiveObject();
-            queue.forEach((o) => o.setCoords());
+            const aRect = anchor.getBoundingRect(true);
 
             queue.forEach((obj) => {
               if (obj === anchor) return;
@@ -1691,45 +3808,69 @@
               if (mode === "left") dx = aRect.left - r.left;
               else if (mode === "center") dx = aRect.left + aRect.width / 2 - (r.left + r.width / 2);
               else if (mode === "right") dx = aRect.left + aRect.width - (r.left + r.width);
-              else if (mode === "top") dy = aRect.top - r.top;
+
+              if (mode === "top") dy = aRect.top - r.top;
               else if (mode === "middle") dy = aRect.top + aRect.height / 2 - (r.top + r.height / 2);
               else if (mode === "bottom") dy = aRect.top + aRect.height - (r.top + r.height);
-              if (dx) obj.set("left", obj.left + dx);
-              if (dy) obj.set("top", obj.top + dy);
-              obj.setCoords();
+
+              if (dx !== 0 || dy !== 0) {
+                obj.set({ left: obj.left + dx, top: obj.top + dy });
+                obj.setCoords();
+              }
             });
             App.canvas.setActiveObject(new fabric.ActiveSelection(queue, { canvas: App.canvas })).requestRenderAll();
             App.history.saveState();
           },
 
+          alignObject: function (mode) {
+            const act = App.canvas.getActiveObject();
+            if (!act) return;
+            const cfg = App.paper.getSettings();
+            const areaL = cfg.marginLeft,
+              areaR = App.state.baseWidth - cfg.marginRight;
+            const areaT = cfg.marginTop,
+              areaB = App.state.baseHeight - cfg.marginBottom;
+            const r = act.getBoundingRect(true);
+            let dx = 0,
+              dy = 0;
+
+            if (mode === "left") dx = areaL - r.left;
+            else if (mode === "centerH") dx = areaL + (areaR - areaL) / 2 - (r.left + r.width / 2);
+            else if (mode === "right") dx = areaR - (r.left + r.width);
+            else if (mode === "top") dy = areaT - r.top;
+            else if (mode === "middle") dy = areaT + (areaB - areaT) / 2 - (r.top + r.height / 2);
+            else if (mode === "bottom") dy = areaB - (r.top + r.height);
+
+            if (dx !== 0 || dy !== 0) {
+              act.set({ left: act.left + dx, top: act.top + dy }).setCoords();
+              App.canvas.requestRenderAll();
+              this.updateGeo(null, null, act);
+              App.history.saveState();
+            }
+          },
+
           distribute: function (mode) {
             const act = App.canvas.getActiveObject();
             if (!act || act.type !== "activeSelection" || act.getObjects().length < 3) return Utils.toast("至少需要3个元素", "info");
-
             const objs = act.getObjects();
             App.canvas.discardActiveObject();
             const isH = mode === "horizontal";
             objs.sort((a, b) => (isH ? a.left - b.left : a.top - b.top));
-
             const first = objs[0],
               last = objs[objs.length - 1];
             const getC = (o) => (isH ? o.getCenterPoint().x : o.getCenterPoint().y);
             const step = (getC(last) - getC(first)) / (objs.length - 1);
 
             objs.forEach((o, i) => {
-              if (i === 0 || i === objs.length - 1) return;
-              const target = getC(first) + step * i;
-              const delta = target - getC(o);
-              o.set(isH ? "left" : "top", (isH ? o.left : o.top) + delta).setCoords();
+              if (i > 0 && i < objs.length - 1) o.set(isH ? "left" : "top", (isH ? o.left : o.top) + (getC(first) + step * i - getC(o))).setCoords();
             });
-
             App.canvas.setActiveObject(new fabric.ActiveSelection(objs, { canvas: App.canvas })).requestRenderAll();
             this.updateInspector();
             App.history.saveState();
           },
         },
 
-        // --- IO (存取/打印) ---
+        // --- IO (导入/导出) ---
         io: {
           _getFontCss: () =>
             [...document.styleSheets]
@@ -1740,14 +3881,12 @@
                   return [];
                 }
               })
-              .join("\n"),
-
+              .join(""),
           _printAsImage: function () {
             const dataUrl = App.canvas.toDataURL({ format: "jpeg", quality: 0.9, multiplier: 3 });
             this._createPrintIframe(`<img src="${dataUrl}" onload="setTimeout(()=>window.print(),500);" style="width:100%">`);
             Utils.toast("已切换兼容模式打印");
           },
-
           _createPrintIframe: function (content, css = "") {
             const id = "print-iframe-sandbox";
             let f = document.getElementById(id);
@@ -1773,7 +3912,6 @@
               this._createPrintIframe(`${svg}<script>setTimeout(()=>window.print(),500)<\/script>`, this._getFontCss());
               App.ui.hideLoading();
             } catch (e) {
-              console.warn(e);
               App.ui.hideLoading();
               this._printAsImage();
             }
@@ -1792,11 +3930,10 @@
               vC.setViewportTransform([1, 0, 0, 1, 0, 0]);
               const svg = vC.toSVG({ suppressPreamble: true, viewBox: { x: 0, y: 0, width: App.state.baseWidth, height: App.state.baseHeight } });
               vC.dispose();
-
               const { w, h } = App.state.currentPaper;
               const pdf = new window.jspdf.jsPDF({ orientation: w > h ? "l" : "p", unit: "mm", format: [w, h] });
               await pdf.svg(new DOMParser().parseFromString(svg, "image/svg+xml").documentElement, { x: 0, y: 0, width: w, height: h });
-              pdf.save(`信笺纸_${Date.now()}.pdf`);
+              pdf.save(`稿纸_${Date.now()}.pdf`);
               Utils.toast("PDF 导出成功");
             } catch (e) {
               console.warn(e);
@@ -1811,7 +3948,7 @@
           },
 
           saveProject: function () {
-            const json = App.canvas.toJSON(["id", "isGrid", "selectable", "evented"]);
+            const json = App.canvas.toJSON(CUSTOM_PROPS);
             json.objects = json.objects.filter((o) => !o.isGrid);
             const blob = new Blob(
               [
@@ -1829,7 +3966,7 @@
 
             const a = document.createElement("a");
             a.href = URL.createObjectURL(blob);
-            a.download = `信笺纸_${Date.now()}.paper`;
+            a.download = `纸_${Date.now()}.paper`;
             a.click();
             URL.revokeObjectURL(a.href);
             Utils.toast("项目已保存");
@@ -1843,6 +3980,8 @@
                 const setV = (id, v) => document.getElementById(id) && (document.getElementById(id).value = v);
                 const setC = (id, v) => document.getElementById(id) && (document.getElementById(id).checked = v);
 
+                // 恢复基础设置
+                setV("paperType", s.type || "ruled");
                 setV("marginTop", Math.round(Utils.px2mm(s.marginTop)));
                 setV("marginBottom", Math.round(Utils.px2mm(s.marginBottom)));
                 setV("marginLeft", Math.round(Utils.px2mm(s.marginLeft)));
@@ -1851,14 +3990,62 @@
                 setV("gridColor", s.gridColor);
                 setV("strokeWidth", s.strokeWidth);
                 setV("paperBgColor", s.paperBgColor || "#ffffff");
+                if (s.customW) setV("customW", s.customW);
+                if (s.customH) setV("customH", s.customH);
+                if (s.paperOrientation !== undefined) setC("paperOrientation", s.paperOrientation);
+
                 setC("doubleFirst", s.doubleFirst);
                 setC("doubleLast", s.doubleLast);
                 setC("gridDashed", s.gridDashed);
                 setV("gridDashArray", s.gridDashArray);
+                setC("ruledClosed", !!s.ruledClosed);
+                setC("ruledClosedDouble", !!s.ruledClosedDouble);
+                setC("paperDual", !!s.dual);
+
+                // 恢复纸张类型特有设置
+                if (s.type === "english") {
+                  setV("englishOffset", Utils.px2mm(s.englishOffset || 0).toFixed(1));
+                  setV("englishLineGap", Utils.px2mm(s.englishLineGap || 6).toFixed(1));
+                  setV("englishGroupGap", Utils.px2mm(s.englishGroupGap || 6).toFixed(1));
+                }
+
+                setV("columnCount", s.columnCount || 12);
+                setV("gridColumns", s.gridColumns || 24);
+                setV("squareDash", s.squareDash || 4);
+                setC("doubleBorder", s.doubleBorder !== undefined ? s.doubleBorder : true);
+
+                if (s.type === "music") {
+                  setV("staffCount", s.staffCount || 8);
+                  setV("staffLineCount", s.staffLineCount || 5);
+                }
+
+                setV("staffLineGap", Utils.px2mm(s.staffLineGap || 3).toFixed(1));
+                setV("staffGroupGap", Utils.px2mm(s.staffGroupGap || 12).toFixed(1));
+
+                if (["tianzige", "mizige", "huizige", "jiugongge"].includes(s.type)) {
+                  setV("tianSize", Utils.px2mm(s.tianSize || 20).toFixed(1));
+                  setV("tianInnerScale", s.tianInnerScale ?? 0.4);
+                  if (s.type === "huizige") {
+                    setV("huiInnerW", Utils.px2mm(s.huiInnerW || 10).toFixed(1));
+                    setV("huiInnerH", Utils.px2mm(s.huiInnerH || 10).toFixed(1));
+                  }
+                  if (s.type === "jiugongge") {
+                    setV("jiuCols", s.jiuCols || 3);
+                    setV("jiuRows", s.jiuRows || 3);
+                  }
+                }
+                if (s.type === "dots") {
+                  setV("dotSpace", Utils.px2mm(s.dotSpace || 5).toFixed(1));
+                  setV("dotSize", Utils.px2mm(s.dotSize || 1).toFixed(1));
+                  setC("dotStagger", !!s.dotStagger);
+                }
                 if (data.paperSize) setV("paperSize", data.paperSize);
               }
+
+              App.paper.changeType(document.getElementById("paperType").value || "ruled", false);
               App.paper.updateSize();
               App.canvas.clear();
+
               const done = () => {
                 App.paper.drawGrid();
                 App.ui.hideModal("welcomeModal");
@@ -1870,6 +4057,7 @@
               };
               data.canvasData ? App.canvas.loadFromJSON(data.canvasData, done) : done();
             } catch (e) {
+              console.error(e);
               Utils.toast("数据解析异常", "error");
               App.ui.hideLoading();
             }
@@ -1893,76 +4081,156 @@
 
           copy: function () {
             const act = App.canvas.getActiveObject();
-            if (act)
+            if (act) {
               act.clone((c) => {
                 App.state.clipboard = c;
                 App.state.pasteCount = 0;
-              });
+              }, CUSTOM_PROPS);
+            }
           },
 
           paste: function () {
             if (!App.state.clipboard) return;
             App.state.pasteCount++;
+
             App.state.clipboard.clone((c) => {
               App.canvas.discardActiveObject();
-              c.set({ left: c.left + 20 * App.state.pasteCount, top: c.top + 20 * App.state.pasteCount, evented: true });
+
+              c.set({
+                left: c.left + 20 * App.state.pasteCount,
+                top: c.top + 20 * App.state.pasteCount,
+                evented: true,
+              });
+
+              if (c.isTable && c.tableData) {
+                c.tableData = JSON.parse(JSON.stringify(c.tableData));
+              }
+              if (c.isSmartRect && c.cornerConfig) {
+                c.cornerConfig = JSON.parse(JSON.stringify(c.cornerConfig));
+              }
+
               if (c.type === "activeSelection") {
                 c.canvas = App.canvas;
                 c.forEachObject((o) => App.canvas.add(o));
                 c.setCoords();
-              } else App.canvas.add(c);
-              App.canvas.setActiveObject(c).requestRenderAll();
+              } else {
+                App.canvas.add(c);
+              }
+
+              App.canvas.setActiveObject(c);
+              App.canvas.requestRenderAll();
               App.ui.updateLayerList();
               App.history.saveState();
-            });
+            }, CUSTOM_PROPS);
           },
         },
 
-        // --- 矢量导出辅助 ---
+        // --- 矢量导出 (Opentype.js) ---
         vector: {
-          fontCache: {},
-          loadFont: async function (family) {
-            if (this.fontCache[family]) return this.fontCache[family];
-            const url = { "SourceHanSerifCN-Bold": "./static/SourceHanSerifCN-Bold.ttf" }[family];
-            if (!url) return null;
-            return new Promise((r) => opentype.load(url, (e, f) => r(e ? null : (this.fontCache[family] = f))));
+          _fontCache: {},
+
+          getFont: async function (fontFamily) {
+            if (this._fontCache[fontFamily]) return this._fontCache[fontFamily];
+            if (App.state.availableFonts && App.state.availableFonts.length > 0) {
+              const localFontData = App.state.availableFonts.find((f) => f.family === fontFamily);
+              if (localFontData) {
+                try {
+                  const buffer = await (await localFontData.blob()).arrayBuffer();
+                  const parsedFont = opentype.parse(buffer);
+                  this._fontCache[fontFamily] = parsedFont;
+                  return parsedFont;
+                } catch (e) {
+                  console.warn(`本地字体 ${fontFamily} 解析失败`, e);
+                }
+              }
+            }
+            if (this._fontCache["DEFAULT"]) return this._fontCache["DEFAULT"];
+            return new Promise((resolve) => {
+              opentype.load("./static/SourceHanSerifCN-Bold.ttf", (err, font) => {
+                if (!err) {
+                  this._fontCache["DEFAULT"] = font;
+                  if (fontFamily) this._fontCache[fontFamily] = font;
+                  resolve(font);
+                } else {
+                  resolve(null);
+                }
+              });
+            });
+          },
+
+          _convertObj: async function (o) {
+            if (o.type === "group" || o.isTable) {
+              const newChildren = [];
+              for (const child of o.getObjects()) newChildren.push(await this._convertObj(child));
+              const props = o.toObject(["left", "top", "angle", "scaleX", "scaleY", "originX", "originY", "opacity", "fill", "stroke", "strokeWidth", "isTable", "tableData", "width", "height"]);
+              const newGroup = new fabric.Group(newChildren, props);
+              if (o.isTable) {
+                newGroup.isTable = true;
+                newGroup.tableData = o.tableData;
+              }
+              return newGroup;
+            }
+
+            if (["i-text", "text", "textbox"].includes(o.type)) {
+              if (!o.text || !o.text.toString().trim()) return o;
+              const font = await this.getFont(o.fontFamily);
+              if (!font) return o;
+
+              try {
+                const textStr = o.text.toString();
+                const fontSize = o.fontSize,
+                  lineHeight = o.lineHeight || 1.16;
+                const lines = textStr.split("\n");
+                let pathData = "";
+                let startY = -((lines.length - 1) * fontSize * lineHeight) / 2 + fontSize * 0.35;
+
+                lines.forEach((line, i) => {
+                  if (!line.trim()) return;
+                  const lineWidth = font.getAdvanceWidth(line, fontSize);
+                  let xOffset = -lineWidth / 2;
+                  if (o.textAlign === "center") xOffset = -lineWidth / 2;
+                  else if (o.textAlign === "right") xOffset = (o.type === "textbox" ? o.width / 2 : 0) - lineWidth;
+                  else xOffset = o.type === "textbox" ? -o.width / 2 : -lineWidth / 2;
+
+                  pathData += font.getPath(line, xOffset, startY + i * fontSize * lineHeight, fontSize).toPathData(2);
+                });
+
+                const path = new fabric.Path(pathData, {
+                  ...o.toObject(["fill", "stroke", "strokeWidth", "opacity", "scaleX", "scaleY", "angle", "shadow", "originX", "originY", "left", "top", "width", "height"]),
+                  objectCaching: false,
+                  stroke: o.stroke || null,
+                  fill: o.fill,
+                });
+                path.setPositionByOrigin(o.getCenterPoint(), "center", "center");
+                return path;
+              } catch (e) {
+                return o;
+              }
+            }
+            return o;
           },
 
           getExportCanvas: async function (convertText) {
-            App.ui.showLoading(convertText ? "文字转曲中..." : "准备打印数据...");
-            const json = App.canvas.toJSON(["id", "isGrid", "selectable", "evented"]);
-
-            // 强制包含网格
+            App.ui.showLoading(convertText ? "正在进行转曲中..." : "准备打印数据...");
+            const json = App.canvas.toJSON(CUSTOM_PROPS);
             const grids = App.canvas
               .getObjects()
-              .filter((o) => o.isGrid)
-              .map((o) => ({ ...o.toObject(["stroke", "strokeWidth", "strokeDashArray"]), excludeFromExport: false }));
+              .filter((o) => o.isGrid && !o.isCutLine)
+              .map((o) => ({ ...o.toObject(["stroke", "strokeWidth", "strokeDashArray", "x1", "y1", "x2", "y2"]), excludeFromExport: false }));
             json.objects = [...grids, ...json.objects];
 
             const tC = new fabric.Canvas(null, { width: App.state.baseWidth, height: App.state.baseHeight, backgroundColor: App.paper.getSettings().paperBgColor });
-
             return new Promise((resolve) => {
               tC.loadFromJSON(json, async () => {
                 if (convertText) {
-                  const objs = tC.getObjects();
-                  for (let i = 0; i < objs.length; i++) {
-                    const o = objs[i];
-                    if (!o.isGrid && ["i-text", "text", "textbox"].includes(o.type)) {
-                      const f = await this.loadFont(o.fontFamily);
-                      if (f) {
-                        try {
-                          const path = new fabric.Path(f.getPath(o.text, 0, 0, o.fontSize).toPathData(2), {
-                            ...o.toObject(["fill", "stroke", "strokeWidth", "opacity", "scaleX", "scaleY", "angle", "shadow"]),
-                            originX: "center",
-                            originY: "center",
-                          });
-                          path.setPositionByOrigin(o.getCenterPoint(), "center", "center");
-                          tC.insertAt(path, i, false);
-                          tC.remove(o);
-                        } catch {}
-                      }
-                    }
+                  const processedObjs = [];
+                  for (const originalObj of tC.getObjects()) {
+                    if (originalObj.isGrid) processedObjs.push(originalObj);
+                    else processedObjs.push(await this._convertObj(originalObj));
                   }
+                  tC.clear();
+                  tC.setBackgroundColor(App.paper.getSettings().paperBgColor, () => {});
+                  processedObjs.forEach((o) => tC.add(o));
                 }
                 tC.renderAll();
                 resolve(tC);
@@ -2005,24 +4273,33 @@
                 Utils.toast("加载失败", "error");
                 App.ui.hideLoading();
               }
-            } else {
-              App.ui.showLoading("创建中...");
-              setTimeout(() => {
-                ["paperSize", "marginTop", "marginBottom", "marginLeft", "marginRight", "rowCount", "gridColor", "strokeWidth"].forEach(
-                  (k, i) => (document.getElementById(k).value = ["A4", 35, 35, 28, 28, 0, "#e11d48", 1][i])
-                );
-                document.getElementById("doubleFirst").checked = true;
-                document.getElementById("doubleLast").checked = true;
-                document.getElementById("gridDashed").checked = false;
-                App.paper.updateSize();
-                App.canvas.clear();
-                App.paper.drawGrid();
-                App.ui.hideModal("welcomeModal");
-                App.ui.updateLayerList();
-                App.history.reset();
-                App.ui.hideLoading();
-              }, 200);
+              return;
             }
+            App.ui.showLoading("创建中...");
+            setTimeout(() => {
+              App.paper.changeType("blank", true);
+              const defaults = {
+                paperSize: "A4",
+                paperOrientation: false,
+                marginTop: 25,
+                marginBottom: 25,
+                marginLeft: 20,
+                marginRight: 20,
+                paperBgColor: "#ffffff",
+              };
+
+              Object.entries(defaults).forEach(([k, v]) => {
+                const el = document.getElementById(k);
+                if (el) el.type === "checkbox" ? (el.checked = v) : (el.value = v);
+              });
+              App.paper.updateSize();
+              App.canvas.clear();
+              App.paper.drawPaper();
+              App.ui.hideModal("welcomeModal");
+              App.ui.updateLayerList();
+              App.history.reset();
+              App.ui.hideLoading();
+            }, 200);
           },
         },
       };
@@ -2030,7 +4307,6 @@
       // --- 初始化绑定 ---
       function initHotkeys() {
         const isInput = () => ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName) || document.activeElement?.contentEditable === "true";
-
         hotkeys("ctrl+z,command+z", (e) => {
           if (!isInput()) {
             e.preventDefault();
@@ -2061,23 +4337,18 @@
             App.tools.deleteActive();
           }
         });
-
         hotkeys("ctrl+c,command+c", (e) => {
-          if (isInput() || window.getSelection()?.toString().length > 0) return;
-          if (App.canvas.getActiveObject()) {
+          if (!isInput() && App.canvas.getActiveObject()) {
             e.preventDefault();
             App.io.copy();
           }
         });
-
         hotkeys("ctrl+v,command+v", (e) => {
-          if (isInput()) return;
-          if (App.state.clipboard) {
+          if (!isInput() && App.state.clipboard) {
             e.preventDefault();
             App.io.paste();
           }
         });
-
         hotkeys("up,down,left,right", (e, h) => {
           if (!isInput() && App.canvas.getActiveObject()) {
             e.preventDefault();
@@ -2107,9 +4378,10 @@
 
       window.onload = function () {
         App.init();
+        App.tableEditor.init();
         App.templates.init();
         initHotkeys();
-        window.onbeforeunload = () => (App.state.hasUnsavedChanges ? "未保存" : undefined);
+        window.onbeforeunload = () => (App.state.hasUnsavedChanges ? "未保存更改" : undefined);
       };
     </script>
   </body>
