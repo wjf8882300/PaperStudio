@@ -68,20 +68,21 @@
         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
       }
 
-      /* 图层列表样式 */
-      .layer-item {
-        border-left: 3px solid transparent;
+      .layer-item[draggable="true"] {
+        cursor: grab;
       }
-
-      .layer-item:hover {
+      .layer-item[draggable="true"]:active {
+        cursor: grabbing;
+      }
+      .layer-item.dragging {
+        opacity: 0.5;
         background-color: #f3f4f6;
+        border: 2px dashed #cbd5e1;
       }
-
-      .layer-item.active {
-        background-color: #eff6ff;
-        border-left-color: #3b82f6;
+      /* 禁止背景层拖拽 */
+      .layer-item.no-drag {
+        cursor: default;
       }
-
       /* 模态框与卡片 */
       .modal-backdrop {
         background-color: rgba(0, 0, 0, 0.6);
@@ -296,7 +297,7 @@
           </div>
           <a href="https://github.com/jingguanzhang/PaperStudio" target="_blank" class="relative z-20 flex items-center gap-2 text-slate-500 hover:text-white transition-colors cursor-pointer w-fit group">
             <i class="ph ph-github-logo text-2xl group-hover:scale-110 transition-transform"></i>
-            <span class="text-xs font-medium">Github 源码</span>
+            <span class="text-xs font-medium">Github</span>
           </a>
           <i class="ph ph-scroll absolute -bottom-5 -right-10 text-[200px] text-slate-800 opacity-50 rotate-12"></i>
         </div>
@@ -395,7 +396,7 @@
           >
             <!-- 字体选择 -->
             <div class="border-r border-gray-200 pr-2">
-              <select id="floatFontFamily" onclick="App.loadLocalFonts()" class="h-7 bg-gray-50 border border-gray-300 rounded text-xs text-slate-700 focus:outline-none focus:border-blue-500 w-24 hover:bg-gray-100">
+              <select id="floatFontFamily" onclick="App.loadLocalFonts()" class="h-7 bg-gray-50 border border-gray-300 rounded text-xs text-slate-700 focus:outline-none focus:border-red-500 w-24 hover:bg-gray-100">
                 <option value="SourceHanSerifCN-Bold">思源宋体</option>
                 <option value="SimSun">宋体</option>
                 <option value="KaiTi">楷体</option>
@@ -406,14 +407,7 @@
 
             <!-- 字号与加粗 -->
             <div class="flex gap-1 border-r border-gray-200 pr-2 items-center">
-              <input
-                type="number"
-                id="floatFontSize"
-                class="w-10 h-7 bg-gray-50 border border-gray-300 rounded text-center text-xs text-slate-700 focus:outline-none focus:border-blue-500"
-                min="9"
-                max="72"
-                title="字号"
-              />
+              <input type="number" id="floatFontSize" class="w-10 h-7 bg-gray-50 border border-gray-300 rounded text-center text-xs text-slate-700 focus:outline-none focus:border-red-500" min="9" max="72" title="字号" />
               <button id="floatBoldBtn" class="p-1.5 hover:bg-gray-100 rounded text-slate-500 hover:text-slate-900 transition"><i class="ph ph-text-b"></i></button>
             </div>
 
@@ -422,7 +416,7 @@
               <input
                 type="number"
                 id="floatBorderWidth"
-                class="w-10 h-7 bg-gray-50 border border-gray-300 rounded text-center text-xs text-slate-700 focus:outline-none focus:border-blue-500"
+                class="w-10 h-7 bg-gray-50 border border-gray-300 rounded text-center text-xs text-slate-700 focus:outline-none focus:border-red-500"
                 min="0"
                 max="10"
                 step="0.5"
@@ -564,10 +558,7 @@
       </div>
 
       <div class="w-80 flex justify-end gap-2">
-        <button
-          onclick="App.ui.showModal('sponsorModal')"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 transition text-xs font-bold mr-1"
-        >
+        <button onclick="App.ui.showModal('sponsorModal')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 transition text-xs font-bold mr-1">
           <i class="ph ph-heart-straight text-lg"></i>
           <span>支持作者</span>
         </button>
@@ -856,7 +847,7 @@
               <button
                 id="bgClearBtn"
                 onclick="App.paper.clearBackground()"
-                class="hidden absolute top-2 right-2 z-10 bg-white/90 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-full p-1 shadow-sm border border-gray-200 transition"
+                class="hidden absolute top-2 right-2 z-10 bg-white/90 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-full p-1 shadow-sm border border-gray-200 transition"
               >
                 <i class="ph ph-trash text-lg"></i>
               </button>
@@ -893,7 +884,7 @@
                   <input type="number" id="propY" class="w-full compact-input border rounded" onchange="App.ui.updateGeo('top', this.value)" />
                 </div>
                 <div>
-                  <label class="compact-label">旋转×</label>
+                  <label class="compact-label">旋转∠</label>
                   <input type="number" id="propAngle" class="w-full compact-input border rounded" onchange="App.ui.updateGeo('angle', this.value)" />
                 </div>
               </div>
@@ -919,21 +910,21 @@
                 step="0.01"
                 oninput="App.ui.setProp('opacity', parseFloat(this.value)); 
                 document.getElementById('opacityVal').innerText=Math.round(this.value*100)+'%'"
-                class="w-full accent-slate-600 h-1 bg-gray-200 rounded appearance-none"
+                class="w-full accent-red-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
               />
             </section>
 
             <section id="alignTools" class="hidden border-b border-gray-100 pb-3">
               <h4 class="font-bold text-gray-400 mb-2">对齐与分布</h4>
               <div class="grid grid-cols-4 gap-1">
-                <button onclick="App.ui.align('left')" class="py-1 border rounded hover:bg-blue-50" title="左对齐"><i class="ph ph-align-left"></i></button>
-                <button onclick="App.ui.align('center')" class="py-1 border rounded hover:bg-blue-50" title="水平居中"><i class="ph ph-align-center-horizontal"></i></button>
-                <button onclick="App.ui.align('right')" class="py-1 border rounded hover:bg-blue-50" title="右对齐"><i class="ph ph-align-right"></i></button>
-                <button onclick="App.ui.distribute('horizontal')" class="py-1 border rounded hover:bg-blue-50" title="水平平均分布"><i class="ph ph-columns"></i></button>
-                <button onclick="App.ui.align('top')" class="py-1 border rounded hover:bg-blue-50" title="顶对齐"><i class="ph ph-align-top"></i></button>
-                <button onclick="App.ui.align('middle')" class="py-1 border rounded hover:bg-blue-50" title="垂直居中"><i class="ph ph-align-center-vertical"></i></button>
-                <button onclick="App.ui.align('bottom')" class="py-1 border rounded hover:bg-blue-50" title="底对齐"><i class="ph ph-align-bottom"></i></button>
-                <button onclick="App.ui.distribute('vertical')" class="py-1 border rounded hover:bg-blue-50" title="垂直平均分布"><i class="ph ph-rows"></i></button>
+                <button onclick="App.ui.align('left')" class="py-1 border rounded hover:bg-red-50" title="左对齐"><i class="ph ph-align-left"></i></button>
+                <button onclick="App.ui.align('center')" class="py-1 border rounded hover:bg-red-50" title="水平居中"><i class="ph ph-align-center-horizontal"></i></button>
+                <button onclick="App.ui.align('right')" class="py-1 border rounded hover:bg-red-50" title="右对齐"><i class="ph ph-align-right"></i></button>
+                <button onclick="App.ui.distribute('horizontal')" class="py-1 border rounded hover:bg-red-50" title="水平平均分布"><i class="ph ph-columns"></i></button>
+                <button onclick="App.ui.align('top')" class="py-1 border rounded hover:bg-red-50" title="顶对齐"><i class="ph ph-align-top"></i></button>
+                <button onclick="App.ui.align('middle')" class="py-1 border rounded hover:bg-red-50" title="垂直居中"><i class="ph ph-align-center-vertical"></i></button>
+                <button onclick="App.ui.align('bottom')" class="py-1 border rounded hover:bg-red-50" title="底对齐"><i class="ph ph-align-bottom"></i></button>
+                <button onclick="App.ui.distribute('vertical')" class="py-1 border rounded hover:bg-red-50" title="垂直平均分布"><i class="ph ph-rows"></i></button>
               </div>
             </section>
 
@@ -976,12 +967,12 @@
                 <input
                   type="range"
                   id="propLineHeight"
-                  min="0.5"
-                  max="3.0"
+                  min="0.1"
+                  max="10"
                   step="0.1"
                   value="1.2"
                   oninput="App.ui.setProp('lineHeight', parseFloat(this.value)); document.getElementById('lineHeightVal').innerText=this.value"
-                  class="w-full accent-slate-600 h-1 bg-gray-200 rounded appearance-none"
+                  class="w-full accent-red-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                 />
               </div>
               <div>
@@ -989,11 +980,11 @@
                 <input
                   type="range"
                   id="propCharSpacing"
-                  min="-200"
-                  max="1000"
+                  min="-1000"
+                  max="10000"
                   step="10"
                   oninput="App.ui.setProp('charSpacing', parseInt(this.value)); document.getElementById('charSpacingVal').innerText=this.value"
-                  class="w-full accent-slate-600 h-1 bg-gray-200 rounded appearance-none"
+                  class="w-full accent-red-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                 />
               </div>
             </section>
@@ -1106,7 +1097,7 @@
             </section>
 
             <section id="tableProps" class="hidden space-y-2 border-b border-gray-100 pb-3">
-              <button onclick="App.tableEditor.open(App.canvas.getActiveObject())" class="w-full py-2 bg-slate-800 text-white border border-slate-900/10 rounded font-medium hover:bg-slate-700 transition">
+              <button onclick="App.tableEditor.open(App.canvas.getActiveObject())" class="w-full py-2 bg-red-50 text-red-600 border border-red-200 rounded font-medium  transition">
                 <i class="ph ph-table text-base mr-1"></i> 编辑表格
               </button>
               <p class="text-[11px] text-gray-400 leading-relaxed">提示：请使用表格工具调整行列、合并拆分以及单元格样式。</p>
@@ -1117,9 +1108,18 @@
                 <i class="ph ph-arrows-clockwise"></i> 替换图片
               </button>
 
-              <button onclick="App.tools.setAsBackground()" class="w-full py-2 bg-blue-50 text-gray-400 border border-blue-200 rounded font-medium hover:bg-blue-100 transition mb-3">
-                <i class="ph ph-image-square"></i> 设为背景图片
-              </button>
+              <div class="flex gap-2 mb-3">
+                <button
+                  onclick="App.tools.setAsBackground()"
+                  class="flex-1 py-2 bg-red-50 text-red-600 border border-red-200 rounded font-medium hover:bg-red-100 transition text-xs "
+                >
+                  <i class="ph ph-image-square"></i> 设为背景
+                </button>
+
+                <button onclick="App.tools.fillPaper()" class="flex-1 py-2  border bg-gray-100 rounded font-medium transition text-xs">
+                  <i class="ph ph-arrows-out-simple"></i> 铺满纸张
+                </button>
+              </div>
             </section>
 
             <section id="fineTuneTools">
@@ -1146,12 +1146,6 @@
         <div class="flex-1 flex flex-col overflow-hidden bg-gray-50/50">
           <div class="h-8 border-b border-gray-200 flex items-center px-3 bg-gray-100 shrink-0"><span class="font-bold text-gray-500 uppercase text-sm">图层</span></div>
           <div id="layerList" class="flex-1 overflow-y-auto p-1 space-y-0.5 custom-scrollbar"></div>
-          <div class="h-9 border-t border-gray-200 bg-white flex items-center justify-around px-2 shrink-0">
-            <button class="p-1 text-gray-500 hover:text-gray-400 hover:bg-blue-50 rounded" onclick="App.ui.moveLayer('up')" title="上移"><i class="ph ph-arrow-up"></i></button>
-            <button class="p-1 text-gray-500 hover:text-gray-400 hover:bg-blue-50 rounded" onclick="App.ui.moveLayer('down')" title="下移"><i class="ph ph-arrow-down"></i></button>
-            <div class="w-px h-3 bg-gray-300"></div>
-            <button class="p-1 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded" onclick="App.tools.deleteActive()" title="删除 (Delete)"><i class="ph ph-trash"></i></button>
-          </div>
         </div>
       </aside>
     </div>
@@ -1487,19 +1481,19 @@
         paper: {
           // 纸张类型默认参数配置
           defaults: {
-            blank: { paperBgColor: "#ffffff", marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0 },
-            ruled: { rowCount: 20, strokeWidth: 1, gridColor: "#e11d48", doubleFirst: true, doubleLast: true, ruledClosed: false },
-            grid: { gridColumns: 24, strokeWidth: 1, gridColor: "#e11d48", doubleBorder: true, gridDashed: false },
-            composition: { columnCount: 12, rowCount: 15, strokeWidth: 1, gridColor: "#e11d48", doubleBorder: true },
-            english: { rowCount: 15, englishLineGap: 3, englishGroupGap: 10, englishOffset: 0, strokeWidth: 1, gridColor: "#8a91a8" },
-            music: { staffCount: 12, staffLineGap: 2.5, staffGroupGap: 12, strokeWidth: 1, staffLineCount: 5, gridColor: "#8a91a8" },
-            tianzige: { tianSize: 18, tianInnerScale: 0.5, strokeWidth: 1, doubleBorder: true, gridDashed: true },
-            mizige: { tianSize: 18, tianInnerScale: 0.5, strokeWidth: 1, doubleBorder: true, gridDashed: true },
-            huizige: { tianSize: 18, tianInnerScale: 0.4, strokeWidth: 1, doubleBorder: true, huiInnerW: 8, huiInnerH: 10, gridDashed: true },
-            jiugongge: { tianSize: 18, tianInnerScale: 0.4, strokeWidth: 1, doubleBorder: true, jiuCols: 3, jiuRows: 3 },
-            dots: { dotSpace: 5, dotSize: 0.5, gridColor: "#e11d48", marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, otStagger: false },
-            triangle: { geoSize: 10, strokeWidth: 1, gridColor: "#e11d48", marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0 },
-            hexagon: { geoSize: 8, strokeWidth: 1, gridColor: "#e11d48", marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0 },
+            blank: { label: "空白纸" },
+            ruled: { label: "横线纸", rowCount: 20, strokeWidth: 1, gridColor: "#e11d48", doubleFirst: true, doubleLast: true, ruledClosed: false },
+            grid: { label: "方格纸", gridColumns: 24, strokeWidth: 1, gridColor: "#e11d48", doubleBorder: true, gridDashed: false },
+            composition: { label: "作文纸", columnCount: 12, rowCount: 15, strokeWidth: 1, gridColor: "#e11d48", doubleBorder: true },
+            english: { label: "英文纸", rowCount: 10, englishLineGap: 3, englishGroupGap: 10, englishOffset: 0, strokeWidth: 1 },
+            music: { label: "乐谱纸", staffCount: 12, staffLineGap: 2.5, staffGroupGap: 12, strokeWidth: 1, staffLineCount: 5, gridColor: "#8a91a8" },
+            tianzige: { label: "田字格", tianSize: 18, tianInnerScale: 0.5, strokeWidth: 1, doubleBorder: true, gridDashed: true },
+            mizige: { label: "米字格", tianSize: 18, tianInnerScale: 0.5, strokeWidth: 1, doubleBorder: true, gridDashed: true },
+            huizige: { label: "回字格", tianSize: 18, tianInnerScale: 0.4, strokeWidth: 1, doubleBorder: true, huiInnerW: 8, huiInnerH: 10, gridDashed: true },
+            jiugongge: { label: "宫格纸", tianSize: 18, tianInnerScale: 0.4, strokeWidth: 1, doubleBorder: true, jiuCols: 3, jiuRows: 3 },
+            dots: { label: "点阵纸", dotSpace: 5, dotSize: 0.5, gridColor: "#e11d48", marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, otStagger: false },
+            triangle: { label: "等距网格", geoSize: 10, strokeWidth: 1, gridColor: "#e11d48", marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0 },
+            hexagon: { label: "六边形网格", strokeWidth: 1, gridColor: "#e11d48", marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0 },
           },
 
           renderers: {
@@ -1725,12 +1719,9 @@
               const colCount = Math.max(1, cfg.columnCount);
               const rowCount = Math.max(1, cfg.rowCount);
 
-              // 强制填满宽度的单元格宽
               const cellW = availW / colCount;
-              // 强制填满高度的行高（含间距）
               const totalRowH = availH / rowCount;
 
-              // 设定文字格与行间距的比例 (例如 0.75 是格子高度，剩余是行间距)
               const cellH = totalRowH * 0.75;
 
               const lines = [];
@@ -1750,18 +1741,15 @@
                 const currentTop = startY + r * totalRowH;
                 const currentBottom = currentTop + cellH;
 
-                // 绘制该行的竖线
                 for (let c = 1; c < colCount; c++) {
                   const x = startX + c * cellW;
                   lines.push(new fabric.Line([x, currentTop, x, currentBottom], hLineOpts));
                 }
 
-                // 绘制该行的上下横线
                 lines.push(new fabric.Line([startX, currentTop, startX + availW, currentTop], hLineOpts));
                 lines.push(new fabric.Line([startX, currentBottom, startX + availW, currentBottom], hLineOpts));
               }
 
-              // 绘制整体外框
               this._drawBorder(canvas, startX, startY, availW, availH, cfg);
 
               lines.forEach((l) => {
@@ -1769,7 +1757,7 @@
                 canvas.sendToBack(l);
               });
             },
-
+            //5.乐谱纸渲染器
             music: function (cfg, canvas) {
               const startX = cfg.marginLeft;
               const endX = App.state.baseWidth - cfg.marginRight;
@@ -1946,7 +1934,7 @@
               });
             },
 
-            // 6. 点阵纸 (严格过滤版)
+            // 6. 点阵纸渲染器
             dots: function (cfg, canvas) {
               const startX = cfg.marginLeft;
               const startY = cfg.marginTop;
@@ -2001,7 +1989,7 @@
               });
             },
 
-            // 7. 三角形网格 (Liang-Barsky 裁剪)
+            // 7. 三角形网格渲染器
             triangle: function (cfg, canvas) {
               const startX = cfg.marginLeft;
               const startY = cfg.marginTop;
@@ -2044,11 +2032,11 @@
                 objectCaching: false,
                 fill: "transparent",
                 strokeLineCap: "square",
-                strokeDashArray: dash, // 传入虚线配置
+                strokeDashArray: dash,
               });
             },
 
-            // 8. 六边形网格 (Liang-Barsky 裁剪)
+            // 8. 六边形网格渲染器
             hexagon: function (cfg, canvas) {
               const startX = cfg.marginLeft;
               const startY = cfg.marginTop;
@@ -2098,7 +2086,7 @@
                 objectCaching: false,
                 fill: "transparent",
                 strokeLineCap: "square",
-                strokeDashArray: dash, // 传入虚线配置
+                strokeDashArray: dash,
               });
             },
 
@@ -2194,8 +2182,19 @@
 
           // 纸张初始化
           init: function () {
-            const type = document.getElementById("paperType")?.value || "ruled";
-            this.changeType(type, true);
+            const select = document.getElementById("paperType");
+            if (select) {
+              select.innerHTML = "";
+              Object.keys(this.defaults).forEach((key) => {
+                const opt = document.createElement("option");
+                opt.value = key;
+                opt.innerText = this.defaults[key].label;
+                select.appendChild(opt);
+              });
+            }
+
+            const initialType = select.value || "blank";
+            this.changeType(initialType, true);
             this.updateSize();
           },
 
@@ -2209,21 +2208,40 @@
 
             if (applyDefaults && this.defaults[type]) {
               const d = this.defaults[type];
+              const setV = (id, v) => {
+                const el = document.getElementById(id);
+                if (el) el.value = v;
+              };
+              const setC = (id, v) => {
+                const el = document.getElementById(id);
+                if (el) el.checked = v;
+              };
 
-              Object.keys(d).forEach((key) => {
-                const el = document.getElementById(key);
-                if (el) {
-                  if (el.type === "checkbox") {
-                    el.checked = !!d[key];
-                  } else {
-                    el.value = d[key];
-                  }
-                }
-              });
+              const margins = { Top: 25, Bottom: 25, Left: 20, Right: 20 };
+              Object.entries(margins).forEach(([key, def]) => setV(`margin${key}`, d[`margin${key}`] ?? def));
+
+              ["rowCount", "columnCount", "gridColumns", "strokeWidth", "gridColor"].forEach((k) => d[k] !== undefined && setV(k, d[k]));
+              ["doubleBorder", "doubleFirst", "doubleLast", "ruledClosed", "dotStagger"].forEach((k) => d[k] !== undefined && setC(k, d[k]));
+
+              const typeConfigs = {
+                english: { englishLineGap: 6, englishGroupGap: 10 },
+                music: { staffLineGap: 3, staffCount: 8 },
+                huizige: { huiInnerW: 10, huiInnerH: 10, tianSize: 18, tianInnerScale: 0.5 },
+                tianzige: { tianSize: 18, tianInnerScale: 0.5 },
+                mizige: { tianSize: 18, tianInnerScale: 0.5 },
+                jiugongge: { jiuCols: 3, jiuRows: 3 },
+                dots: { dotSpace: 5, dotSize: 1 },
+                triangle: { geoSize: 10 },
+                hexagon: { geoSize: 10 },
+              };
+
+              if (typeConfigs[type]) {
+                Object.entries(typeConfigs[type]).forEach(([k, def]) => setV(k, d[k] || def));
+              }
             }
-
             this.updateSettings();
           },
+
           updateSettings: function () {
             const rc = document.getElementById("rowCount");
             if (rc) document.getElementById("rowCountDisplay").innerText = rc.value;
@@ -2338,56 +2356,14 @@
           drawPaper: function () {
             const cfg = this.getSettings();
             const canvas = App.canvas;
-
-            canvas.remove(...canvas.getObjects().filter((o) => o.isGrid));
             canvas.setBackgroundColor(cfg.paperBgColor, canvas.requestRenderAll.bind(canvas));
+            canvas.remove(...canvas.getObjects().filter((o) => o.isGrid));
 
-            const renderer = this.renderers[cfg.type] || this.renderers.ruled;
-
+            const renderer = this.renderers[cfg.type];
             try {
-              if (cfg.dual && App.state.baseWidth > App.state.baseHeight) {
-                const originalBaseWidth = App.state.baseWidth;
-                const halfWidth = originalBaseWidth / 2;
-                const originalAdd = canvas.add.bind(canvas);
-
-                App.state.baseWidth = halfWidth;
-                renderer.call(this.renderers, cfg, canvas);
-
-                canvas.add = function (...objects) {
-                  objects.forEach((obj) => {
-                    if (obj) {
-                      obj.left += halfWidth;
-                      if (obj.type === "line") {
-                        obj.setCoords();
-                      }
-                    }
-                  });
-                  originalAdd(...objects);
-                };
-
-                renderer.call(this.renderers, cfg, canvas);
-
-                canvas.add = originalAdd;
-                App.state.baseWidth = originalBaseWidth;
-
-                const midLine = new fabric.Line([halfWidth, 0, halfWidth, App.state.baseHeight], {
-                  stroke: "#ccc",
-                  strokeWidth: 1,
-                  strokeDashArray: [10, 10],
-                  selectable: false,
-                  evented: false,
-                  isGrid: true,
-                  isCutLine: true,
-                  originX: "center",
-                  originY: "center",
-                });
-                canvas.add(midLine);
-                canvas.sendToBack(midLine);
-              } else {
-                renderer.call(this.renderers, cfg, canvas);
-              }
+              if (renderer) renderer.call(this.renderers, cfg, canvas);
             } catch (e) {
-              console.warn("Render Error:", e);
+              console.warn(e);
             }
             canvas.requestRenderAll();
           },
@@ -2802,7 +2778,27 @@
               );
             } else Utils.toast("请先选中一张图片", "error");
           },
+          fillPaper: function () {
+            const act = App.canvas.getActiveObject();
+            if (!act || act.type !== "image") return Utils.toast("请先选中一张图片", "error");
 
+            const w = App.state.baseWidth;
+            const h = App.state.baseHeight;
+            act.set({
+              angle: 0,
+              left: w / 2,
+              top: h / 2,
+              originX: "center",
+              originY: "center",
+              scaleX: w / act.width,
+              scaleY: h / act.height,
+            });
+
+            act.setCoords();
+            App.canvas.requestRenderAll();
+            App.ui.updateInspector();
+            App.history.saveState();
+          },
           deleteActive: function () {
             const act = App.canvas.getActiveObject();
             if (!act) return;
@@ -3740,6 +3736,7 @@
           updateLayerList: function () {
             const list = document.getElementById("layerList");
             list.innerHTML = "";
+
             const objs = App.canvas
               .getObjects()
               .filter((o) => !o.isGrid)
@@ -3747,86 +3744,174 @@
             const activeObjs = App.canvas.getActiveObjects();
 
             if (objs.length === 0 && !App.canvas.backgroundImage) {
-              list.innerHTML = '<div class="text-gray-400 text-center py-4">暂无图层</div>';
+              list.innerHTML = '<div class="text-gray-400 text-center py-4 text-xs">暂无图层</div>';
               return;
             }
 
-            const createRow = (icon, name, isActive, isBg, onClick, onDel) => {
+            const createRow = (icon, name, obj, isActive, isBg) => {
               const div = document.createElement("div");
-              div.className = `layer-item flex items-center justify-between px-2 py-2 border-b border-gray-100 last:border-0 cursor-pointer transition ${
-                isActive ? "active" : isBg ? "bg-gray-50/80 italic text-slate-500" : "hover:bg-gray-50"
+              div.fabricObj = obj;
+
+              div.className = `layer-item flex items-center justify-between px-2 py-2 border-b border-gray-100 last:border-b-0 select-none transition ${
+                (isActive || isBg)
+                  ? "active bg-red-50 text-red-600 border-l-2 border-l-red-500 font-bold"
+                  : "hover:bg-red-50 bg-white text-slate-600"
               }`;
-              div.innerHTML = `<div class="flex items-center gap-2 w-full overflow-hidden"><i class="ph ${icon} ${isActive ? "text-blue-500" : "text-gray-400"}"></i><span class="truncate select-none text-xs ${
-                isActive ? "font-bold" : ""
-              }">${name}</span></div><button class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded ml-2"><i class="ph ph-trash"></i></button>`;
-              div.onclick = onClick;
-              div.querySelector("button").onclick = (e) => {
-                e.stopPropagation();
-                onDel();
+
+              // 开启拖拽 (背景除外)
+              if (!isBg) {
+                div.setAttribute("draggable", "true");
+              }
+
+              div.innerHTML = `
+      <div class="flex items-center gap-2 w-full overflow-hidden pointer-events-none">
+        <i class="ph ${icon} text-lg"></i>
+        <span class="truncate text-xs">${name}</span>
+      </div>
+      ${!isBg ? `<button class="del-btn p-1 text-gray-400 hover:text-red-600 hover:bg-white rounded ml-2 transition" title="删除"><i class="ph ph-trash"></i></button>` : ""}
+    `;
+
+              // --- 事件绑定 ---
+
+              // 1. 点击选中
+              div.onclick = (e) => {
+                if (isBg) return;
+                if (e.ctrlKey) {
+                  const newSel = activeObjs.includes(obj) ? activeObjs.filter((i) => i !== obj) : [...activeObjs, obj];
+                  App.canvas.setActiveObject(new fabric.ActiveSelection(newSel, { canvas: App.canvas }));
+                } else {
+                  App.canvas.setActiveObject(obj);
+                }
+                App.canvas.requestRenderAll();
+                Array.from(list.children).forEach((child) => {
+                  if (!child.classList.contains("dragging")) this.updateInspector();
+                });
               };
+
+              // 2. 删除按钮
+              const delBtn = div.querySelector(".del-btn");
+              if (delBtn) {
+                delBtn.onclick = (e) => {
+                  e.stopPropagation();
+                  App.canvas.remove(obj);
+                  App.canvas.discardActiveObject();
+                  App.history.saveState();
+                  this.updateInspector();
+                };
+              }
+
+              // --- 原生拖拽事件 ---
+              if (!isBg) {
+                div.addEventListener("dragstart", (e) => {
+                  div.classList.add("dragging");
+                  // 解决 Firefox 拖拽兼容性
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/plain", "");
+                  // 选中当前拖拽的项
+                  if (!activeObjs.includes(obj)) {
+                    App.canvas.setActiveObject(obj);
+                    App.canvas.requestRenderAll();
+                  }
+                });
+
+                div.addEventListener("dragend", (e) => {
+                  div.classList.remove("dragging");
+                  this._finalizeLayerOrder(); // 拖拽结束，应用顺序
+                });
+              }
+
               return div;
             };
 
+            // --- 填充列表 ---
             objs.forEach((o) => {
-              let icon = "ph-square",
-                label = o.text ? o.text.substring(0, 10) : o.type;
+              let icon = "ph-square";
+              let label = o.text ? o.text.substring(0, 10) : o.type;
               if (o.isTable) {
                 icon = "ph-table";
-                label = `表格 ${o.tableData?.rows || 0}x${o.tableData?.cols || 0}`;
-              } else if (o.type.includes("text")) icon = "ph-text-t";
-              else if (o.type === "image") icon = "ph-image";
-              else if (o.type === "line") icon = "ph-line-segment";
-              else if (["rect", "circle", "triangle"].includes(o.type)) icon = "ph-shapes";
+                label = `表格`;
+              } else if (o.type.includes("text")) {
+                icon = "ph-text-t";
+                label = o.text ? o.text.substring(0, 12) : "文本";
+              } else if (o.type === "image") {
+                icon = "ph-image";
+                label = "图片";
+              } else if (o.type === "line") {
+                icon = "ph-line-segment";
+                label = "线条";
+              } else if (["rect", "circle", "triangle"].includes(o.type)) {
+                icon = "ph-shapes";
+                label = "形状";
+              }
 
-              list.appendChild(
-                createRow(
-                  icon,
-                  label,
-                  activeObjs.includes(o),
-                  false,
-                  (e) => {
-                    if (e.ctrlKey) {
-                      const newSel = activeObjs.includes(o) ? activeObjs.filter((i) => i !== o) : [...activeObjs, o];
-                      App.canvas.setActiveObject(new fabric.ActiveSelection(newSel, { canvas: App.canvas }));
-                    } else App.canvas.setActiveObject(o);
-                    App.canvas.requestRenderAll();
-                  },
-                  () => {
-                    App.canvas.remove(o);
-                    App.canvas.discardActiveObject();
-                    App.ui.updateLayerList();
-                    App.history.saveState();
-                  }
-                )
-              );
+              list.appendChild(createRow(icon, label, o, activeObjs.includes(o), false));
             });
 
+            // 添加背景层
             if (App.canvas.backgroundImage) {
-              list.appendChild(
-                createRow(
-                  "ph-image-square",
-                  "【背景】图片",
-                  false,
-                  true,
-                  () => {},
-                  () => {
-                    if (confirm("移除背景?")) App.paper.clearBackground();
-                  }
-                )
-              );
+              const bgDiv = createRow("ph-image-square", "【背景】图片", null, false, true);
+              // 背景移除按钮
+              const removeBtn = document.createElement("button");
+              removeBtn.className = "p-1 text-red-600 rounded ml-2";
+              removeBtn.innerHTML = '<i class="ph ph-trash"></i>';
+              removeBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (confirm("删除背景?")) App.paper.clearBackground();
+              };
+              bgDiv.appendChild(removeBtn);
+              list.appendChild(bgDiv);
             }
+
+            // --- 容器事件：处理拖拽排序核心逻辑 ---
+            list.ondragover = (e) => {
+              e.preventDefault();
+              const afterElement = this._getDragAfterElement(list, e.clientY);
+              const draggable = document.querySelector(".dragging");
+              if (!draggable) return;
+
+              if (afterElement == null) {
+                const last = list.lastElementChild;
+                if (last && last.classList.contains("no-drag")) {
+                  list.insertBefore(draggable, last);
+                } else {
+                  list.appendChild(draggable);
+                }
+              } else {
+                list.insertBefore(draggable, afterElement);
+              }
+            };
           },
 
-          moveLayer: function (dir) {
-            const act = App.canvas.getActiveObject();
-            if (!act) return;
-            dir === "up" ? act.bringForward() : act.sendBackwards();
-            App.canvas.getObjects().forEach((o) => o.isGrid && App.canvas.sendToBack(o));
+          // 辅助方法：获取当前鼠标位置下方的元素
+          _getDragAfterElement: function (container, y) {
+            const draggableElements = [...container.querySelectorAll('.layer-item[draggable="true"]:not(.dragging)')];
+
+            return draggableElements.reduce(
+              (closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                  return { offset: offset, element: child };
+                } else {
+                  return closest;
+                }
+              },
+              { offset: Number.NEGATIVE_INFINITY }
+            ).element;
+          },
+
+          _finalizeLayerOrder: function () {
+            const list = document.getElementById("layerList");
+            const gridObjects = App.canvas.getObjects().filter((o) => o.isGrid);
+
+            const domOrderObjs = Array.from(list.children)
+              .map((div) => div.fabricObj)
+              .filter((o) => o);
+            const newStackOrder = domOrderObjs.reverse();
+            App.canvas._objects = [...gridObjects, ...newStackOrder];
             App.canvas.requestRenderAll();
-            this.updateLayerList();
             App.history.saveState();
           },
-
           showLoading: (m) => {
             const el = document.getElementById("loadingOverlay");
             if (el) {
@@ -4292,7 +4377,7 @@
           data: [],
           init: async function () {
             try {
-              this.data = await (await fetch("./static/templates.json")).json();
+              this.data = await (await fetch("./templates/templates.json")).json();
               const grid = document.getElementById("templateGrid");
               if (grid) {
                 grid.innerHTML = "";
