@@ -58,11 +58,12 @@
         background-image: radial-gradient(#ddd 1px, transparent 1px);
         background-size: 20px 20px;
         display: block;
+        padding: 0px 20px 0px 40px;
       }
 
       #zoomViewport {
-        margin: 40px auto;
-        transform-origin: 0 0;
+        margin: 40px auto 20px;
+        transform-origin: center;
         overflow: hidden;
         border-radius: 2px;
         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
@@ -229,6 +230,50 @@
         pointer-events: auto;
         will-change: top, left;
       }
+      /* --- 在 <style> 中添加以下内容 --- */
+
+      /* 标尺样式 */
+      .ruler-canvas {
+        position: absolute;
+        background-color: #f8fafc;
+        z-index: 40; /* 在画布之上，但在悬浮按钮之下 */
+        pointer-events: none; /* 允许鼠标穿透点击画布 */
+      }
+
+      #ruler-h {
+        top: 0;
+        left: 20px; /* 避开左上角方块 */
+        width: calc(100% - 20px);
+        height: 20px;
+        border-bottom: 1px solid #cbd5e1;
+      }
+
+      #ruler-v {
+        top: 20px;
+        left: 0;
+        width: 20px;
+        height: calc(100% - 20px);
+        border-right: 1px solid #cbd5e1;
+      }
+
+      #ruler-corner {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 20px;
+        height: 20px;
+        background: #ffffff;
+        z-index: 41;
+        border-right: 1px solid #cbd5e1;
+        border-bottom: 1px solid #cbd5e1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 8px;
+        color: #64748b;
+        font-weight: bold;
+      }
+
       @font-face {
         font-family: "SourceHanSerifCN-Bold";
         src: url("./static/SourceHanSerifCN-Bold.ttf") format("truetype");
@@ -832,14 +877,18 @@
       </aside>
 
       <main class="flex-1 bg-gray-200 relative flex flex-col overflow-hidden">
-        <div class="absolute top-4 right-4 z-20 flex items-center bg-white shadow-lg rounded-lg p-1 border border-gray-200 text-xs">
+        <div class="absolute bottom-8 right-4 z-20 flex items-center bg-white shadow-lg rounded-lg p-1 border border-gray-200 text-xs">
           <button onclick="App.zoom.change(-0.1)" class="w-7 h-7 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded transition"><i class="ph ph-minus"></i></button>
           <span id="zoomPercent" class="font-mono w-12 text-center text-gray-600 font-bold">100%</span>
           <button onclick="App.zoom.change(0.1)" class="w-7 h-7 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded transition"><i class="ph ph-plus"></i></button>
           <div class="w-px h-3 bg-gray-300 mx-1"></div>
           <button onclick="App.zoom.autoFit()" class="w-7 h-7 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded transition" title="自适应"><i class="ph ph-arrows-out-simple"></i></button>
         </div>
-
+        <div class="absolute top-0 left-0 z-10">
+          <div id="ruler-corner">mm</div>
+          <canvas id="ruler-h" class="ruler-canvas"></canvas>
+          <canvas id="ruler-v" class="ruler-canvas"></canvas>
+        </div>
         <div id="scrollContainer" class="flex-1 overflow-auto custom-scrollbar relative">
           <div id="zoomViewport">
             <div id="canvasWrapper" class="shadow-2xl bg-white relative">
@@ -856,14 +905,14 @@
           </div>
         </div>
 
-        <div class="h-5 bg-white border-t border-gray-200 flex items-center justify-between px-3 text-gray-400 shrink-0 z-20 text-xs">
+        <div class="h-5 bg-white border-t border-gray-200 flex items-center justify-between px-3 text-gray-400 shrink-0 z-30 text-xs">
           <span id="canvasSizeLabel">A4</span>
           <span class="flex items-center"><i class="ph ph-mouse-left-click"></i>拖动平移 | 滚轮缩放 | Shift+点击 多选 | Alt+拉框 多选</span>
         </div>
       </main>
 
       <aside class="w-64 bg-white border-l border-gray-200 flex flex-col z-20 h-full text-xs">
-        <div class="flex-1 flex flex-col border-b border-gray-200 overflow-hidden" style="min-height: 45%">
+        <div class="flex-1 flex flex-col border-b border-gray-200 overflow-hidden min-h-[45%]">
           <div class="h-8 border-b border-gray-100 flex items-center px-3 bg-gray-50/50 shrink-0">
             <span class="font-bold text-gray-500 uppercase tracking-wider text-sm">选中属性</span>
           </div>
@@ -953,6 +1002,7 @@
                   <button id="btnBold" onclick="App.ui.toggleStyle('bold')" class="style-btn hover:bg-gray-50 border-r"><i class="ph ph-text-b"></i></button>
                   <button id="btnItalic" onclick="App.ui.toggleStyle('italic')" class="style-btn hover:bg-gray-50 border-r"><i class="ph ph-text-italic"></i></button>
                   <button id="btnUnderline" onclick="App.ui.toggleStyle('underline')" class="style-btn hover:bg-gray-50"><i class="ph ph-text-underline"></i></button>
+                  <button id="btnVertical" onclick="App.ui.toggleVertical()" class="style-btn hover:bg-gray-50" title="竖排文字"><i class="ph ph-text-t rotate-90"></i></button>
                 </div>
                 <div class="flex-1 h-7 border rounded p-0.5 overflow-hidden flex items-center relative">
                   <input type="color" id="propColor" oninput="App.ui.setProp('fill', this.value)" class="absolute -top-2 -left-2 w-[150%] h-20 cursor-pointer p-0 border-0" />
@@ -1098,7 +1148,7 @@
             </section>
 
             <section id="tableProps" class="hidden space-y-2 border-b border-gray-100 pb-3">
-              <button onclick="App.tableEditor.open(App.canvas.getActiveObject())" class="w-full py-2 bg-red-50 text-red-600 border border-red-200 rounded font-medium  transition">
+              <button onclick="App.tableEditor.open(App.canvas.getActiveObject())" class="w-full py-2 bg-red-50 text-red-600 border border-red-200 rounded font-medium transition">
                 <i class="ph ph-table text-base mr-1"></i> 编辑表格
               </button>
               <p class="text-[11px] text-gray-400 leading-relaxed">提示：请使用表格工具调整行列、合并拆分以及单元格样式。</p>
@@ -1110,16 +1160,11 @@
               </button>
 
               <div class="flex gap-2 mb-3">
-                <button
-                  onclick="App.tools.setAsBackground()"
-                  class="flex-1 py-2 bg-red-50 text-red-600 border border-red-200 rounded font-medium hover:bg-red-100 transition text-xs "
-                >
+                <button onclick="App.tools.setAsBackground()" class="flex-1 py-2 bg-red-50 text-red-600 border border-red-200 rounded font-medium hover:bg-red-100 transition text-xs">
                   <i class="ph ph-image-square"></i> 设为背景
                 </button>
 
-                <button onclick="App.tools.fillPaper()" class="flex-1 py-2  border bg-gray-100 rounded font-medium transition text-xs">
-                  <i class="ph ph-arrows-out-simple"></i> 铺满纸张
-                </button>
+                <button onclick="App.tools.fillPaper()" class="flex-1 py-2 border bg-gray-100 rounded font-medium transition text-xs"><i class="ph ph-arrows-out-simple"></i> 铺满纸张</button>
               </div>
             </section>
 
@@ -1188,6 +1233,7 @@
         // 表格属性
         "isTable",
         "tableData",
+        "isVertical",
       ];
       // --- 通用工具类 ---
       const Utils = {
@@ -1334,6 +1380,8 @@
             centeredScaling: false,
             uniformScaling: false,
             uniScaleKey: "shiftKey",
+            objectCaching: false,
+            noScaleCache: false,
           });
 
           // 自定义旋转控制手柄
@@ -1398,6 +1446,7 @@
           });
 
           this.paper.init();
+          this.ruler.init();
           this.events.initCanvasEvents();
           this.history.init();
           this.zoom.autoFit();
@@ -2352,6 +2401,7 @@
             App.zoom.apply(App.state.zoom);
             App.state.hasUnsavedChanges = true;
             this.drawPaper();
+            App.ruler.draw();
           },
 
           drawPaper: function () {
@@ -2423,6 +2473,7 @@
             }
             document.getElementById("zoomPercent").innerText = Math.round(scale * 100) + "%";
             App.canvas.requestRenderAll();
+            App.ruler.draw();
           },
         },
 
@@ -3579,6 +3630,50 @@
             this.updateInspector();
             App.history.saveState();
           },
+          toggleVertical: function () {
+            const act = App.canvas.getActiveObject();
+            if (!act || !["i-text", "text", "textbox"].includes(act.type)) return;
+
+            const isVert = !!act.isVertical;
+            const text = act.text || "";
+
+            if (!isVert) {
+              act._prevLineHeight = act.lineHeight;
+              act._prevTextAlign = act.textAlign;
+
+              const paragraphs = text.split("\n");
+              const vertParagraphs = paragraphs.map((p) => {
+                return p.split("").join("\n");
+              });
+              const vertText = vertParagraphs.join("\n\n");
+
+              act.set({
+                text: vertText,
+                isVertical: true,
+                textAlign: "center",
+                lineHeight: 1,
+                width: act.type === "textbox" ? act.width : undefined,
+              });
+            } else {
+              const vertParagraphs = text.split(/\n\n/);
+              const horizParagraphs = vertParagraphs.map((p) => {
+                return p.replace(/\n/g, "");
+              });
+              const horizText = horizParagraphs.join("\n");
+
+              act.set({
+                text: horizText,
+                isVertical: false,
+                textAlign: act._prevTextAlign || "left",
+                lineHeight: act._prevLineHeight || 1.2,
+              });
+            }
+
+            act.setCoords();
+            App.canvas.requestRenderAll();
+            this.updateInspector();
+            App.history.saveState();
+          },
           updateShapeDash: function () {
             const act = App.canvas.getActiveObject();
             if (!act) return;
@@ -3671,6 +3766,7 @@
               document.getElementById("btnBold").classList.toggle("active", cell.bold);
               document.getElementById("btnItalic").classList.toggle("active", cell.italic);
               document.getElementById("btnUnderline").classList.remove("active");
+              document.getElementById("btnVertical").classList.toggle("active", !!act.isVertical);
 
               const fillPicker = document.getElementById("shapeFill");
               const fillWrapper = document.getElementById("shapeFillWrapper");
@@ -3754,9 +3850,7 @@
               div.fabricObj = obj;
 
               div.className = `layer-item flex items-center justify-between px-2 py-2 border-b border-gray-100 last:border-b-0 select-none transition ${
-                (isActive || isBg)
-                  ? "active bg-red-50 text-red-600 border-l-2 border-l-red-500 font-bold"
-                  : "hover:bg-red-50 bg-white text-slate-600"
+                isActive || isBg ? "active bg-red-50 text-red-600 border-l-2 border-l-red-500 font-bold" : "hover:bg-red-50 bg-white text-slate-600"
               }`;
 
               // 开启拖拽 (背景除外)
@@ -4434,6 +4528,125 @@
               App.history.reset();
               App.ui.hideLoading();
             }, 200);
+          },
+        },
+        //页面标尺
+        ruler: {
+          h: null,
+          v: null,
+          ctxH: null,
+          ctxV: null,
+          isEnabled: true,
+
+          init: function () {
+            this.h = document.getElementById("ruler-h");
+            this.v = document.getElementById("ruler-v");
+            if (!this.h || !this.v) return;
+            this.ctxH = this.h.getContext("2d");
+            this.ctxV = this.v.getContext("2d");
+            this.draw();
+          },
+
+          draw: function (mouseX, mouseY) {
+            if (!this.isEnabled || !this.h || !this.v) return;
+            const zoom = App.state.zoom;
+            const main = document.querySelector("main");
+            const wrapper = document.getElementById("canvasWrapper");
+            const thick = 20;
+            const dpr = window.devicePixelRatio || 1;
+            const cw = main.clientWidth - thick;
+            const ch = main.clientHeight - thick;
+            const resizeCanvas = (can, w, h) => {
+              if (can.width !== w * dpr || can.height !== h * dpr) {
+                can.width = w * dpr;
+                can.height = h * dpr;
+                can.style.width = w + "px";
+                can.style.height = h + "px";
+              }
+            };
+            resizeCanvas(this.h, cw, thick);
+            resizeCanvas(this.v, thick, ch);
+            const mainRect = main.getBoundingClientRect();
+            const wrapperRect = wrapper.getBoundingClientRect();
+            const startX = wrapperRect.left - mainRect.left - thick;
+            const startY = wrapperRect.top - mainRect.top - thick;
+            const pxPerMm = CONFIG.MM_TO_PX * zoom;
+            let stepMm = 1;
+            if (pxPerMm < 4) stepMm = 5;
+            if (pxPerMm < 2) stepMm = 10;
+            if (pxPerMm < 0.5) stepMm = 50;
+            const drawAxis = (ctx, isVert, length, startOffset) => {
+              ctx.setTransform(1, 0, 0, 1, 0, 0);
+              ctx.scale(dpr, dpr);
+              ctx.fillStyle = "#ffffff";
+              ctx.fillRect(0, 0, isVert ? thick : length, isVert ? length : thick);
+              ctx.beginPath();
+              ctx.strokeStyle = "#e2e8f0";
+              ctx.lineWidth = 1;
+              if (isVert) {
+                ctx.moveTo(thick - 0.5, 0);
+                ctx.lineTo(thick - 0.5, length);
+              } else {
+                ctx.moveTo(0, thick - 0.5);
+                ctx.lineTo(length, thick - 0.5);
+              }
+              ctx.stroke();
+              ctx.fillStyle = "#a5a5a5";
+              ctx.strokeStyle = "#a5a5a5";
+              ctx.font = "10px sans-serif";
+              ctx.beginPath();
+              const minMm = Math.floor(-startOffset / pxPerMm);
+              const maxMm = Math.ceil((length - startOffset) / pxPerMm);
+              for (let mm = Math.floor(minMm / stepMm) * stepMm; mm <= maxMm; mm += stepMm) {
+                const pos = startOffset + mm * pxPerMm;
+                const isMajor = mm % (stepMm * 10) === 0;
+                const isMiddle = mm % (stepMm * 5) === 0;
+                const tickLen = isMajor ? 10 : isMiddle ? 6 : 4;
+                if (isVert) {
+                  ctx.moveTo(thick, pos);
+                  ctx.lineTo(thick - tickLen, pos);
+                } else {
+                  ctx.moveTo(pos, thick);
+                  ctx.lineTo(pos, thick - tickLen);
+                }
+                if (isMajor) {
+                  if (isVert) {
+                    ctx.save();
+                    ctx.translate(10, pos + 2);
+                    ctx.rotate(-Math.PI / 2);
+                    ctx.fillText(mm, 2, 0);
+                    ctx.restore();
+                  } else {
+                    ctx.fillText(mm, pos + 2, 10);
+                  }
+                }
+              }
+              ctx.stroke();
+            };
+            drawAxis(this.ctxH, false, cw, startX);
+            drawAxis(this.ctxV, true, ch, startY);
+            if (mouseX !== undefined && mouseY !== undefined) {
+              const relX = mouseX - mainRect.left - thick;
+              const relY = mouseY - mainRect.top - thick;
+              const cursorColor = "#e11d48";
+              const drawCursor = (ctx, isVert, pos, maxLen) => {
+                if (pos >= 0 && pos <= maxLen) {
+                  ctx.strokeStyle = cursorColor;
+                  ctx.lineWidth = 1;
+                  ctx.beginPath();
+                  if (isVert) {
+                    ctx.moveTo(0, pos);
+                    ctx.lineTo(thick, pos);
+                  } else {
+                    ctx.moveTo(pos, 0);
+                    ctx.lineTo(pos, thick);
+                  }
+                  ctx.stroke();
+                }
+              };
+              drawCursor(this.ctxH, false, relX, cw);
+              drawCursor(this.ctxV, true, relY, ch);
+            }
           },
         },
       };
